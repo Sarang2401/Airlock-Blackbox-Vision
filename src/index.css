@@ -2,14 +2,108 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
-    Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@layer base {
+  body {
+    @apply transition-colors duration-200 selection:bg-cyan-500 selection:text-white;
+  }
 }
 
-code, pre {
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+/* Custom Handcrafted Micro-Animations applying 12 Principles of Animation */
+
+/* 1. Laser Radar Scanline across documents during local on-device detection */
+.scanline-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.scanline-beam {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, #00F5A0 50%, transparent 100%);
+  box-shadow: 0 0 14px 2px rgba(0, 245, 160, 0.7);
+  pointer-events: none;
+  animation: airlockScan 2.4s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+/* 2. Tactile Button Click Depression (Squash & Anticipation) */
+.btn-tactile {
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.12s ease;
+}
+
+.btn-tactile:active {
+  transform: scale(0.96) translateY(1px);
+}
+
+/* 3. Token Tag Pop Reveal with Spring Overshoot */
+@keyframes tokenPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(4px);
+  }
+  70% {
+    transform: scale(1.05) translateY(-1px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-token-pop {
+  animation: tokenPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* 4. Ledger Receipt Stamp Feedback Effect */
+@keyframes receiptStampAnim {
+  0% {
+    transform: scale(1.2) rotate(-2deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(0.98) rotate(1deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+}
+
+.animate-receipt-stamp {
+  animation: receiptStampAnim 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 5. Glassmorphic Card Styling */
+.glass-panel {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* 6. Custom Responsive Modern Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(30, 46, 78, 0.6);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 245, 160, 0.4);
 }

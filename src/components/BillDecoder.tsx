@@ -10,7 +10,7 @@ import { dispatchDisputePack } from '../dispatch/dispatcher';
 import { SplitScreenReview } from './SplitScreenReview';
 import { DisputePackView } from './DisputePackView';
 import { CaseSession, DisputePack, CapabilityTier } from '../contracts/types';
-import { Sparkles, FileText } from 'lucide-react';
+import { Sparkles, FileText, Shield } from 'lucide-react';
 
 interface BillDecoderProps {
   tier: CapabilityTier;
@@ -22,6 +22,7 @@ export const BillDecoder: React.FC<BillDecoderProps> = ({ tier }) => {
   const [sanitizedDocuments, setSanitizedDocuments] = useState<Array<{ documentId: string; sanitizedText: string }>>([]);
   const [preparedPayload, setPreparedPayload] = useState<any>(null);
   const [disputePackResult, setDisputePackResult] = useState<DisputePack | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
   const [isDispatching, setIsDispatching] = useState(false);
   const [dispatchSource, setDispatchSource] = useState<'ON_DEVICE' | 'IN_CLOUD' | 'UNKNOWN'>('IN_CLOUD');
   const [latencyMs, setLatencyMs] = useState(1180);
@@ -32,60 +33,69 @@ export const BillDecoder: React.FC<BillDecoderProps> = ({ tier }) => {
   const handleRunDetection = async () => {
     setErrorMsg(null);
     setDisputePackResult(null);
+    setIsScanning(true);
 
-    const normalizedDocs = selectedSample.documents.map((d, idx) =>
-      normalizeDocumentText(`doc_${idx + 1}`, d.kind, d.displayName, d.text)
-    );
+    setTimeout(async () => {
+      try {
+        const normalizedDocs = selectedSample.documents.map((d, idx) =>
+          normalizeDocumentText(`doc_${idx + 1}`, d.kind, d.displayName, d.text)
+        );
 
-    const allFindings = normalizedDocs.flatMap((doc) =>
-      runDeterministicDetectors(doc.id, doc.normalizedText)
-    );
+        const allFindings = normalizedDocs.flatMap((doc) =>
+          runDeterministicDetectors(doc.id, doc.normalizedText)
+        );
 
-    const caseId = `case_${Date.now()}`;
-    const transform = transformCaseDocuments(caseId, normalizedDocs, allFindings, {
-      discloseHospital,
-      expandDiagnosis,
-    });
+        const caseId = `case_${Date.now()}`;
+        const transform = transformCaseDocuments(caseId, normalizedDocs, allFindings, {
+          discloseHospital,
+          expandDiagnosis,
+        });
 
-    const eligibility = classifyCloudEligibility({
-      isOnline: tier !== 'TIER_C_OFFLINE',
-      isNanoAvailable: tier === 'TIER_A_NANO',
-      isCuratedSyntheticSample: true,
-      hasUnresolvedResidualWarnings: transform.residualWarnings.length > 0,
-      hasRawNarrativeModifications: false,
-    });
+        const eligibility = classifyCloudEligibility({
+          isOnline: tier !== 'TIER_C_OFFLINE',
+          isNanoAvailable: tier === 'TIER_A_NANO',
+          isCuratedSyntheticSample: true,
+          hasUnresolvedResidualWarnings: transform.residualWarnings.length > 0,
+          hasRawNarrativeModifications: false,
+        });
 
-    const session: CaseSession = {
-      caseId,
-      caseNonce: transform.transformationMap.caseNonce,
-      revision: 1,
-      documents: normalizedDocs,
-      findings: allFindings,
-      transformationMap: transform.transformationMap,
-      discloseHospital,
-      expandDiagnosis,
-      capabilityTier: tier,
-      isEligibleForCloud: eligibility.isEligibleForCloud,
-      ineligibilityReason: eligibility.reason,
-    };
+        const session: CaseSession = {
+          caseId,
+          caseNonce: transform.transformationMap.caseNonce,
+          revision: 1,
+          documents: normalizedDocs,
+          findings: allFindings,
+          transformationMap: transform.transformationMap,
+          discloseHospital,
+          expandDiagnosis,
+          capabilityTier: tier,
+          isEligibleForCloud: eligibility.isEligibleForCloud,
+          ineligibilityReason: eligibility.reason,
+        };
 
-    setCaseSession(session);
-    setSanitizedDocuments(transform.sanitizedDocuments);
+        setCaseSession(session);
+        setSanitizedDocuments(transform.sanitizedDocuments);
 
-    const prep = await buildPreparedDisputeRequest({
-      caseSession: session,
-      sanitizedDocs: transform.sanitizedDocuments.map((s, i) => ({
-        id: s.documentId,
-        kind: normalizedDocs[i].kind,
-        sanitizedText: s.sanitizedText,
-      })),
-      targetCloudModel: 'gemini-2.5-flash',
-      promptInstructions: 'Analyze billing line items for duplicate charges, unbundled codes, and policy denial validity. Draft formal appeal letter.',
-      jurisdiction: selectedSample.jurisdiction,
-      currency: selectedSample.currency,
-    });
+        const prep = await buildPreparedDisputeRequest({
+          caseSession: session,
+          sanitizedDocs: transform.sanitizedDocuments.map((s, i) => ({
+            id: s.documentId,
+            kind: normalizedDocs[i].kind,
+            sanitizedText: s.sanitizedText,
+          })),
+          targetCloudModel: 'gemini-2.5-flash',
+          promptInstructions: 'Analyze billing line items for duplicate charges, unbundled codes, and policy denial validity. Draft formal appeal letter.',
+          jurisdiction: selectedSample.jurisdiction,
+          currency: selectedSample.currency,
+        });
 
-    setPreparedPayload(prep);
+        setPreparedPayload(prep);
+      } catch (err: any) {
+        setErrorMsg(err?.message || 'Error executing on-device detection');
+      } finally {
+        setIsScanning(false);
+      }
+    }, 600);
   };
 
   const handleApproveAndDispatch = async () => {
@@ -179,23 +189,56 @@ Yours sincerely,
     }
   };
 
+  const steps = [
+    { num: 1, label: 'Case Paperwork', active: true, done: !!caseSession },
+    { num: 2, label: 'Airlock Privacy Gate', active: !!caseSession, done: !!disputePackResult },
+    { num: 3, label: 'Sanitized Cloud Reasoning', active: !!disputePackResult, done: !!disputePackResult },
+    { num: 4, label: 'Dispute Pack & Local Appeal', active: !!disputePackResult, done: !!disputePackResult },
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs select-none">
+        {steps.map((st) => (
+          <div
+            key={st.num}
+            className={`p-3 rounded-xl border flex items-center space-x-2 transition ${
+              st.done
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+                : st.active
+                ? 'bg-cyan-50 dark:bg-cyan-950/40 border-cyan-300 dark:border-cyan-800 text-cyan-800 dark:text-cyan-300 font-bold'
+                : 'bg-white dark:bg-void-card border-slate-200 dark:border-void-border text-slate-400'
+            }`}
+          >
+            <span className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+              st.done
+                ? 'bg-emerald-500 text-white'
+                : st.active
+                ? 'bg-cyan-500 text-white'
+                : 'bg-slate-200 dark:bg-void-elevated text-slate-500'
+            }`}>
+              {st.done ? '✓' : st.num}
+            </span>
+            <span className="truncate">{st.label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white dark:bg-void-card border border-slate-200/90 dark:border-void-border rounded-2xl p-5 sm:p-6 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <FileText className="h-5 w-5 text-cyan-400" />
+            <h2 className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2 tracking-tight">
+              <FileText className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
               Bill & Claim Decoder Workspace
             </h2>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               Select a curated synthetic healthcare case or upload itemized paperwork for local privacy gate review.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2.5">
             <select
-              aria-label="Curated Synthetic Healthcare Case"
+              aria-label="Curated Synthetic Healthcare Case Selection"
               value={selectedSample.id}
               onChange={(e) => {
                 const found = SYNTHETIC_SAMPLE_CASES.find((s) => s.id === e.target.value);
@@ -206,54 +249,68 @@ Yours sincerely,
                   setDisputePackResult(null);
                 }
               }}
-              className="bg-slate-950 border border-slate-700 text-xs text-slate-200 rounded-lg px-3 py-2 font-medium cursor-pointer"
+              className="bg-slate-50 dark:bg-void-950 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 rounded-xl px-3 py-2.5 cursor-pointer focus:outline-none"
             >
               {SYNTHETIC_SAMPLE_CASES.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.title}
+                  {s.jurisdiction === 'IN' ? '🇮🇳' : '🇺🇸'} {s.title}
                 </option>
               ))}
             </select>
 
             <button
               onClick={handleRunDetection}
-              className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition shadow-lg shadow-cyan-500/20"
+              disabled={isScanning}
+              className="btn-tactile px-5 py-2.5 bg-gradient-to-r from-cyan-600 via-teal-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 transition shadow-lg shadow-cyan-500/20"
             >
               <Sparkles className="h-4 w-4" />
-              <span>Run Local Detection (ONLY_ON_DEVICE)</span>
+              <span>{isScanning ? 'Scanning on Device...' : 'Run Local Detection (ONLY_ON_DEVICE)'}</span>
             </button>
           </div>
         </div>
 
-        <div className="mt-4 pt-4 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-          <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800/80">
-            <span className="text-slate-500 block mb-0.5">Documents in Case:</span>
-            <span className="text-slate-200 font-medium">
+        <div className="mt-5 pt-4 border-t border-slate-200 dark:border-void-border grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          <div className="bg-slate-50 dark:bg-void-950/60 p-3 rounded-xl border border-slate-200/80 dark:border-void-border">
+            <span className="text-slate-400 block mb-0.5 text-[11px] font-medium">Documents in Bundle:</span>
+            <span className="text-slate-800 dark:text-slate-200 font-semibold truncate block">
               {selectedSample.documents.map((d) => d.displayName).join(', ')}
             </span>
           </div>
-          <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800/80">
-            <span className="text-slate-500 block mb-0.5">Jurisdiction & Currency:</span>
-            <span className="text-slate-200 font-medium">
-              {selectedSample.jurisdiction === 'IN' ? 'India (INR ₹)' : 'United States (USD $)'}
+          <div className="bg-slate-50 dark:bg-void-950/60 p-3 rounded-xl border border-slate-200/80 dark:border-void-border">
+            <span className="text-slate-400 block mb-0.5 text-[11px] font-medium">Jurisdiction & Currency:</span>
+            <span className="text-slate-800 dark:text-slate-200 font-semibold">
+              {selectedSample.jurisdiction === 'IN' ? '🇮🇳 India (INR ₹)' : '🇺🇸 United States (USD $)'}
             </span>
           </div>
-          <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800/80">
-            <span className="text-slate-500 block mb-0.5">Target Dispute Grounds:</span>
-            <span className="text-cyan-400 font-medium truncate block">
+          <div className="bg-slate-50 dark:bg-void-950/60 p-3 rounded-xl border border-slate-200/80 dark:border-void-border">
+            <span className="text-slate-400 block mb-0.5 text-[11px] font-medium">Target Dispute Grounds:</span>
+            <span className="text-cyan-600 dark:text-cyan-400 font-semibold truncate block">
               {selectedSample.expectedIssues[0]}
             </span>
           </div>
         </div>
       </div>
 
+      {isScanning && (
+        <div className="scanline-container bg-slate-900 border border-cyan-800 rounded-2xl p-6 text-center space-y-3 shadow-xl">
+          <div className="scanline-beam" />
+          <div className="flex items-center justify-center space-x-2 text-cyan-400 font-mono text-sm font-bold">
+            <Shield className="h-5 w-5 animate-pulse" />
+            <span>GEMINI NANO ON-DEVICE PRIVACY PASS IN PROGRESS</span>
+          </div>
+          <p className="text-xs text-slate-400 font-mono">
+            Evaluating 12-digit Aadhaar Verhoeff checksums, PAN patterns, policy keys, and clinical entities locally...
+          </p>
+        </div>
+      )}
+
       {errorMsg && (
-        <div className="p-4 bg-rose-950/80 border border-rose-800 rounded-xl text-rose-200 text-xs font-medium">
+        <div className="p-4 bg-rose-50 dark:bg-rose-950/80 border border-rose-300 dark:border-rose-800 rounded-xl text-rose-800 dark:text-rose-200 text-xs font-semibold">
           {errorMsg}
         </div>
       )}
 
-      {caseSession && preparedPayload && (
+      {caseSession && preparedPayload && !isScanning && (
         <SplitScreenReview
           originalText={caseSession.documents.map((d) => `=== ${d.displayName} ===\n${d.originalText}`).join('\n\n')}
           sanitizedText={sanitizedDocuments.map((d) => `=== Document: ${d.documentId} ===\n${d.sanitizedText}`).join('\n\n')}
