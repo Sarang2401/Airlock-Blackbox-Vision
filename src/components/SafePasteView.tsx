@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Copy, Terminal, Check, ShieldCheck } from 'lucide-react';
+import { Copy, Check, ShieldCheck } from 'lucide-react';
 import { runDeterministicDetectors } from '../airlock/deterministic';
 import { transformCaseDocuments } from '../airlock/transformation';
 import { normalizeDocumentText } from '../ingestion/normalizer';
@@ -55,36 +55,34 @@ export const SafePasteView: React.FC = () => {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <div className="bg-white dark:bg-void-card border border-slate-200/90 dark:border-void-border rounded-2xl p-5 sm:p-6 shadow-sm">
+      {/* Header card */}
+      <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-900 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center space-x-2.5">
-            <div className="h-8 w-8 rounded-xl bg-cyan-500/10 dark:bg-cyan-400/20 flex items-center justify-center">
-              <Terminal className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
-            </div>
-            <div>
-              <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                Safe Paste for AI Chatbots
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Protect patient and client identities before pasting prompts into ChatGPT, Claude, or Gemini.
-              </p>
-            </div>
+          <div>
+            <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
+              Safe Paste for AI Chatbots
+            </h2>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              Protect patient and client identities before pasting prompts into ChatGPT, Claude, or Gemini.
+            </p>
           </div>
-          <span className="text-xs px-2.5 py-1 rounded-full font-mono font-bold bg-cyan-100 dark:bg-cyan-950 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-800">
+          <span className="text-xs font-mono px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-zinc-500">
             Problem 3.2 Solution
           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div className="bg-white dark:bg-void-card border border-slate-200/90 dark:border-void-border rounded-2xl p-5 space-y-3 shadow-sm">
+      {/* Step cards row 1 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Step 1 */}
+        <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-              1. Sensitive Prompt (Raw Local)
+            <span className="text-xs uppercase tracking-wide text-zinc-400 font-medium">
+              Step 1 — Sensitive Prompt
             </span>
             <button
               onClick={handleSanitize}
-              className="btn-tactile text-xs px-3.5 py-1.5 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white rounded-xl font-bold transition shadow-sm"
+              className="btn-press bg-emerald-500 hover:bg-emerald-600 text-white px-4 h-8 rounded-md text-xs font-semibold transition-colors"
             >
               Sanitize Prompt
             </button>
@@ -94,31 +92,32 @@ export const SafePasteView: React.FC = () => {
             value={inputPrompt}
             onChange={(e) => setInputPrompt(e.target.value)}
             rows={5}
-            className="w-full bg-slate-50 dark:bg-void-950 text-xs font-mono text-slate-800 dark:text-slate-200 p-3.5 rounded-xl border border-slate-200 dark:border-void-border focus:outline-none focus:border-cyan-500"
+            className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg p-3 text-sm font-mono text-zinc-800 dark:text-zinc-200 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
             placeholder="Paste your sensitive prompt here..."
           />
-          <span className="text-[11px] text-slate-400 block font-mono">
+          <span className="text-xs text-zinc-400 font-mono block">
             Evaluates phone, Aadhaar, PAN, policy numbers locally.
           </span>
         </div>
 
-        <div className="bg-white dark:bg-void-card border border-slate-200/90 dark:border-void-border rounded-2xl p-5 space-y-3 shadow-sm">
+        {/* Step 2 */}
+        <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4" />
-              2. Sanitized Prompt for Chatbot
+            <span className="text-xs uppercase tracking-wide text-zinc-400 font-medium flex items-center gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+              Step 2 — Sanitized Prompt
             </span>
             <button
               onClick={handleCopySanitized}
               disabled={!sanitizedPrompt}
-              className={`btn-tactile text-xs px-3.5 py-1.5 rounded-xl font-bold flex items-center space-x-1.5 transition ${
+              className={`btn-press flex items-center gap-1.5 px-4 h-8 rounded-md text-xs font-semibold transition-colors ${
                 sanitizedPrompt
-                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm'
-                  : 'bg-slate-100 dark:bg-void-elevated text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-200 dark:border-void-border'
+                  ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                  : 'border border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed'
               }`}
             >
               {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-              <span>{copied ? 'Copied with Receipt!' : 'Copy with Receipt'}</span>
+              <span>{copied ? 'Copied!' : 'Copy with Receipt'}</span>
             </button>
           </div>
           <textarea
@@ -126,28 +125,30 @@ export const SafePasteView: React.FC = () => {
             value={sanitizedPrompt}
             readOnly
             rows={5}
-            className="w-full bg-slate-50 dark:bg-void-950 text-xs font-mono text-emerald-800 dark:text-emerald-300 p-3.5 rounded-xl border border-slate-200 dark:border-void-border focus:outline-none"
+            className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg p-3 text-sm font-mono text-zinc-800 dark:text-zinc-200 resize-none focus:outline-none"
             placeholder="Click 'Sanitize Prompt' to generate safe text..."
           />
-          <span className="text-[11px] text-slate-400 block font-mono">
+          <span className="text-xs text-zinc-400 font-mono block">
             Copies to clipboard and commits a CLIPBOARD_EXPORT receipt.
           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
-        <div className="bg-white dark:bg-void-card border border-slate-200/90 dark:border-void-border rounded-2xl p-5 space-y-3 shadow-sm">
+      {/* Step cards row 2 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Step 3 */}
+        <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-              3. Paste Chatbot Response
+            <span className="text-xs uppercase tracking-wide text-zinc-400 font-medium">
+              Step 3 — Paste Chatbot Response
             </span>
             <button
               onClick={handleRehydrate}
               disabled={!botResponse || !activeMap}
-              className={`btn-tactile text-xs px-3.5 py-1.5 rounded-xl font-bold transition ${
+              className={`btn-press border px-4 h-8 rounded-md text-xs font-medium transition-colors ${
                 botResponse && activeMap
-                  ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm'
-                  : 'bg-slate-100 dark:bg-void-elevated text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                  ? 'border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                  : 'border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed'
               }`}
             >
               Restore Real Data Locally
@@ -158,21 +159,22 @@ export const SafePasteView: React.FC = () => {
             value={botResponse}
             onChange={(e) => setBotResponse(e.target.value)}
             rows={5}
-            className="w-full bg-slate-50 dark:bg-void-950 text-xs font-mono text-slate-800 dark:text-slate-200 p-3.5 rounded-xl border border-slate-200 dark:border-void-border focus:outline-none focus:border-indigo-500"
+            className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg p-3 text-sm font-mono text-zinc-800 dark:text-zinc-200 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
             placeholder="Paste the external chatbot's reply containing placeholders here..."
           />
         </div>
 
-        <div className="bg-white dark:bg-void-card border border-slate-200/90 dark:border-void-border rounded-2xl p-5 space-y-3 shadow-sm">
-          <span className="text-xs font-bold text-cyan-700 dark:text-cyan-400 uppercase tracking-wider block">
-            4. Rehydrated Final Result
+        {/* Step 4 */}
+        <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-3">
+          <span className="text-xs uppercase tracking-wide text-zinc-400 font-medium block">
+            Step 4 — Rehydrated Final Result
           </span>
           <textarea
             aria-label="Rehydrated Final Result"
             value={rehydratedResponse}
             readOnly
             rows={5}
-            className="w-full bg-slate-50 dark:bg-void-950 text-xs font-mono text-cyan-800 dark:text-cyan-300 p-3.5 rounded-xl border border-slate-200 dark:border-void-border focus:outline-none"
+            className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg p-3 text-sm font-mono text-zinc-800 dark:text-zinc-200 resize-none focus:outline-none"
             placeholder="Original identities will be restored safely here on device..."
           />
         </div>

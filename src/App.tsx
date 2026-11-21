@@ -9,7 +9,6 @@ import { BenchmarkView } from './components/BenchmarkView';
 import { CapabilityTier } from './contracts/types';
 import { remoteConfigManager } from './firebase/remoteConfig';
 import { initAppCheck } from './firebase/config';
-import { ShieldCheck, Lock } from 'lucide-react';
 
 export function AppContent() {
   const [activeTab, setActiveTab] = useState<'decoder' | 'safepaste' | 'blackbox' | 'receipts' | 'benchmark'>('decoder');
@@ -22,7 +21,7 @@ export function AppContent() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-void-950 text-slate-800 dark:text-slate-100 flex flex-col transition-colors duration-200">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 flex flex-col">
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -32,7 +31,7 @@ export function AppContent() {
         setCloudEnabled={setCloudEnabled}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-4">
         {activeTab === 'decoder' && <BillDecoder tier={tier} />}
         {activeTab === 'safepaste' && <SafePasteView />}
         {activeTab === 'blackbox' && <BlackBoxDashboard />}
@@ -40,23 +39,15 @@ export function AppContent() {
         {activeTab === 'benchmark' && <BenchmarkView />}
       </main>
 
-      <footer className="border-t border-slate-200/80 dark:border-void-border bg-white/80 dark:bg-void-950/80 py-6 mt-12 transition-colors duration-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
-          <div className="flex items-center space-x-2">
-            <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            <span className="font-bold text-slate-800 dark:text-slate-200">Airlock + Black Box</span>
-            <span>—</span>
-            <span>#BuildHybridAI 2026 Hackathon</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-4">
-            <span className="flex items-center gap-1 font-mono text-cyan-700 dark:text-cyan-400 font-medium">
-              <Lock className="h-3 w-3" />
-              Fail-Closed Privacy Gateway
-            </span>
-            <span className="text-slate-300 dark:text-slate-700">|</span>
-            <span className="font-mono text-slate-600 dark:text-slate-400">Firebase AI Logic Hybrid Inference</span>
-            <span className="text-slate-300 dark:text-slate-700">|</span>
-            <span className="text-slate-600 dark:text-slate-400 font-semibold">Apache-2.0 Open Source</span>
+      <footer className="border-t border-zinc-200 dark:border-zinc-800 py-5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-500 dark:text-zinc-500">
+          <span className="font-medium text-zinc-700 dark:text-zinc-400">Airlock + Black Box</span>
+          <div className="flex items-center gap-4">
+            <span className="font-mono">#BuildHybridAI 2026</span>
+            <span className="text-zinc-300 dark:text-zinc-700">·</span>
+            <span className="font-mono text-emerald-600 dark:text-emerald-500">0% PII Egress</span>
+            <span className="text-zinc-300 dark:text-zinc-700">·</span>
+            <span>Apache-2.0</span>
           </div>
         </div>
       </footer>

@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface AirlockLogoProps {
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg';
   showText?: boolean;
   className?: string;
 }
@@ -11,112 +11,60 @@ export const AirlockLogo: React.FC<AirlockLogoProps> = ({
   showText = true,
   className = '',
 }) => {
-  const dimensions = {
-    sm: { box: 32, icon: 28, textMain: 'text-base', textSub: 'text-[10px]' },
-    md: { box: 42, icon: 38, textMain: 'text-lg', textSub: 'text-xs' },
-    lg: { box: 56, icon: 50, textMain: 'text-2xl', textSub: 'text-sm' },
-    xl: { box: 72, icon: 64, textMain: 'text-3xl', textSub: 'text-base' },
+  const dim = {
+    sm: { box: 28, svg: 24, name: 'text-sm', sub: 'text-[10px]' },
+    md: { box: 36, svg: 30, name: 'text-base', sub: 'text-[11px]' },
+    lg: { box: 48, svg: 40, name: 'text-xl', sub: 'text-xs' },
   }[size];
 
   return (
-    <div className={`flex items-center space-x-3 select-none ${className}`}>
-      {/* Handcrafted Animated Brand Mark */}
+    <div className={`flex items-center gap-2.5 select-none ${className}`}>
       <div
-        className="relative flex items-center justify-center rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 dark:from-slate-950 dark:to-slate-900 border border-slate-800/80 dark:border-cyan-900/40 shadow-lg shadow-cyan-950/20 group cursor-pointer"
-        style={{ width: dimensions.box, height: dimensions.box }}
+        className="relative flex items-center justify-center rounded-lg bg-zinc-900 dark:bg-zinc-900 border border-zinc-700/80 dark:border-zinc-700 shadow-sm flex-shrink-0"
+        style={{ width: dim.box, height: dim.box }}
       >
-        {/* Ambient Glow Aura */}
-        <div className="absolute inset-0 rounded-2xl bg-cyan-500/10 dark:bg-cyan-400/15 blur-md group-hover:bg-cyan-500/25 transition-all duration-500" />
-
-        {/* Vector SVG Brand Mark */}
         <svg
-          width={dimensions.icon}
-          height={dimensions.icon}
+          width={dim.svg}
+          height={dim.svg}
           viewBox="0 0 48 48"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          className="relative z-10 transition-transform duration-300 group-hover:scale-105"
         >
-          {/* Outer Orbital Containment Ring (Airlock Chamber) */}
-          <circle
-            cx="24"
-            cy="24"
-            r="20"
-            stroke="url(#ringGrad)"
-            strokeWidth="2"
-            strokeDasharray="9 5"
-            className="animate-spin-slow origin-center opacity-80"
-          />
-
-          {/* Inner Hexagonal Seal Plate */}
+          {/* Outer ring */}
+          <circle cx="24" cy="24" r="19" stroke="#262626" strokeWidth="1.5" />
+          {/* Hexagonal outline */}
           <polygon
-            points="24,8 37,16 37,32 24,40 11,32 11,16"
-            stroke="url(#hexGrad)"
+            points="24,9 36,16.5 36,31.5 24,39 12,31.5 12,16.5"
+            stroke="#10B981"
             strokeWidth="1.5"
-            fill="url(#sealFill)"
-            className="opacity-90"
+            fill="none"
+            strokeLinejoin="round"
           />
-
-          {/* Central Black Box Core (Quantum Telemetry Diamond) */}
+          {/* Core diamond */}
           <rect
-            x="18"
-            y="18"
-            width="12"
-            height="12"
-            rx="2.5"
+            x="19"
+            y="19"
+            width="10"
+            height="10"
+            rx="2"
             transform="rotate(45 24 24)"
-            fill="url(#coreGrad)"
-            stroke="#00F5A0"
-            strokeWidth="1.5"
-            className="animate-pulse-subtle"
+            fill="#10B981"
+            fillOpacity="0.9"
           />
-
-          {/* Optical Telemetry Aperture / Sensor Eye */}
-          <circle cx="24" cy="24" r="2.5" fill="#FFFFFF" />
-
-          {/* Gradients */}
-          <defs>
-            <linearGradient id="ringGrad" x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#00F5A0" />
-              <stop offset="0.5" stopColor="#00D9F5" />
-              <stop offset="1" stopColor="#6366F1" />
-            </linearGradient>
-            <linearGradient id="hexGrad" x1="11" y1="8" x2="37" y2="40" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#38BDF8" />
-              <stop offset="1" stopColor="#10B981" />
-            </linearGradient>
-            <linearGradient id="sealFill" x1="24" y1="8" x2="24" y2="40" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#0F172A" stopOpacity="0.8" />
-              <stop offset="1" stopColor="#020617" stopOpacity="0.95" />
-            </linearGradient>
-            <linearGradient id="coreGrad" x1="18" y1="18" x2="30" y2="30" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#0284C7" />
-              <stop offset="1" stopColor="#059669" />
-            </linearGradient>
-          </defs>
+          {/* Center dot */}
+          <circle cx="24" cy="24" r="2" fill="#FAFAFA" />
         </svg>
-
-        {/* Live Status Telemetry Dot */}
-        <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border border-slate-950" />
-        </span>
+        {/* Status indicator — only the core dot, no animate-ping */}
+        <span className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-500" />
       </div>
 
-      {/* Typography Lockup */}
       {showText && (
-        <div className="flex flex-col">
-          <div className="flex items-center space-x-1.5 leading-none">
-            <span className={`font-black tracking-tight text-slate-900 dark:text-white ${dimensions.textMain}`}>
-              AIRLOCK
-            </span>
-            <span className="text-slate-400 dark:text-slate-500 font-light text-xs font-mono">+</span>
-            <span className={`font-bold tracking-tight bg-gradient-to-r from-cyan-600 to-indigo-600 dark:from-cyan-400 dark:to-teal-300 bg-clip-text text-transparent ${dimensions.textMain}`}>
-              BLACK BOX
-            </span>
-          </div>
-          <span className={`text-slate-600 dark:text-slate-300 font-medium tracking-wide mt-0.5 ${dimensions.textSub}`}>
-            Privacy Gateway & Hybrid Observability
+        <div className="flex flex-col leading-none">
+          <span className={`font-bold tracking-tight text-zinc-900 dark:text-zinc-50 ${dim.name}`}>
+            Airlock
+          </span>
+          <span className={`text-zinc-500 dark:text-zinc-400 font-medium mt-0.5 ${dim.sub}`}>
+            + Black Box
           </span>
         </div>
       )}

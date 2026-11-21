@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   CheckCircle2,
+  ChevronDown,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -44,11 +45,11 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const navItems = [
-    { id: 'decoder', label: 'Bill & Claim Decoder', icon: FileText, badge: 'Core' },
-    { id: 'safepaste', label: 'Safe Paste', icon: Terminal, badge: 'Chatbots' },
-    { id: 'blackbox', label: 'Black Box', icon: Activity, badge: 'Hybrid AI' },
-    { id: 'receipts', label: 'Privacy Receipts', icon: ShieldCheck, badge: 'SHA-256' },
-    { id: 'benchmark', label: 'Airlock-Bench', icon: Cpu, badge: '105 Docs' },
+    { id: 'decoder', label: 'Bill Decoder', icon: FileText },
+    { id: 'safepaste', label: 'Safe Paste', icon: Terminal },
+    { id: 'blackbox', label: 'Black Box', icon: Activity },
+    { id: 'receipts', label: 'Receipts', icon: ShieldCheck },
+    { id: 'benchmark', label: 'Benchmark', icon: Cpu },
   ] as const;
 
   const handleSelectTab = (tab: typeof activeTab) => {
@@ -57,121 +58,19 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200/80 dark:border-void-border bg-white/90 dark:bg-void-950/90 backdrop-blur-md transition-colors duration-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-4">
-          {/* Brand Logo */}
-          <div onClick={() => handleSelectTab('decoder')} className="cursor-pointer">
+    <header className="sticky top-0 z-50 border-b border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="flex items-center justify-between h-14">
+          {/* Brand */}
+          <button
+            onClick={() => handleSelectTab('decoder')}
+            className="flex-shrink-0 btn-press"
+          >
             <AirlockLogo size="md" />
-          </div>
+          </button>
 
-          {/* Desktop Controls (Right) */}
-          <div className="hidden lg:flex items-center space-x-3">
-            {/* Device Capability Tier Selector */}
-            <div className="flex items-center space-x-2 bg-slate-100 dark:bg-void-card px-3 py-1.5 rounded-xl border border-slate-200 dark:border-void-border text-xs font-medium">
-              <Cpu className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
-              <span className="text-slate-500 dark:text-slate-400">Mode:</span>
-              <select
-                aria-label="Hardware Inference Mode"
-                value={tier}
-                onChange={(e) => setTier(e.target.value as CapabilityTier)}
-                className="bg-transparent text-slate-800 dark:text-slate-200 font-semibold focus:outline-none cursor-pointer"
-              >
-                <option value="TIER_A_NANO" className="bg-white dark:bg-void-card">Tier A: Gemini Nano (On-Device)</option>
-                <option value="TIER_B_NO_NANO" className="bg-white dark:bg-void-card">Tier B: Curated Judge Mode</option>
-                <option value="TIER_C_OFFLINE" className="bg-white dark:bg-void-card">Tier C: Offline Only</option>
-              </select>
-            </div>
-
-            {/* Remote Config Kill Switch */}
-            <button
-              onClick={toggleKillSwitch}
-              className={`btn-tactile flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
-                cloudEnabled
-                  ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'
-                  : 'bg-rose-50 dark:bg-rose-950/50 border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/50'
-              }`}
-              title="Remote Config Client-Side Kill Switch"
-            >
-              <Power className="h-3.5 w-3.5" />
-              <span>Cloud: {cloudEnabled ? 'ENABLED' : 'HALTED'}</span>
-            </button>
-
-            {/* Theme Toggle Button */}
-            <button
-              onClick={toggleTheme}
-              aria-label="Toggle Theme"
-              className="btn-tactile p-2 rounded-xl text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-void-card hover:bg-slate-200 dark:hover:bg-void-elevated border border-slate-200 dark:border-void-border transition"
-            >
-              {theme === 'dark' ? (
-                <Sun className="h-4 w-4 text-amber-400 transition-transform rotate-0 hover:rotate-45" />
-              ) : (
-                <Moon className="h-4 w-4 text-indigo-600 transition-transform rotate-0 hover:-rotate-12" />
-              )}
-            </button>
-          </div>
-
-          {/* Mobile Actions Button */}
-          <div className="flex lg:hidden items-center space-x-2">
-            <button
-              onClick={toggleTheme}
-              aria-label="Toggle Dark/Light Mode"
-              className="p-2 rounded-lg text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-void-card border border-slate-200 dark:border-void-border"
-            >
-              {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-600" />}
-            </button>
-
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label="Open Navigation Menu"
-              className="p-2 rounded-lg text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-void-card border border-slate-200 dark:border-void-border"
-            >
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Desktop Navigation Tabs */}
-        <div className="hidden lg:flex space-x-1 border-t border-slate-200/60 dark:border-void-border/60 pt-1 text-sm font-medium">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => handleSelectTab(item.id)}
-                className={`group relative flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-semibold transition duration-150 ${
-                  isActive
-                    ? 'text-cyan-700 dark:text-cyan-300 bg-cyan-50 dark:bg-cyan-950/40'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-void-card/60'
-                }`}
-              >
-                <Icon className={`h-4 w-4 transition-transform group-hover:scale-110 ${isActive ? 'text-cyan-600 dark:text-cyan-400' : 'text-slate-400 dark:text-slate-500'}`} />
-                <span>{item.label}</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-medium ${
-                  isActive
-                    ? 'bg-cyan-200/60 dark:bg-cyan-900/60 text-cyan-800 dark:text-cyan-200'
-                    : 'bg-slate-200/60 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400'
-                }`}>
-                  {item.badge}
-                </span>
-
-                {isActive && (
-                  <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient-to-r from-cyan-500 to-indigo-500 rounded-full" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Mobile Menu Drawer */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-slate-200 dark:border-void-border bg-white dark:bg-void-950 px-4 pt-3 pb-6 space-y-4 shadow-2xl animate-fadeIn">
-          <div className="space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-3">
-              Navigation
-            </span>
+          {/* Desktop Nav */}
+          <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -179,50 +78,129 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   key={item.id}
                   onClick={() => handleSelectTab(item.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors btn-press ${
                     isActive
-                      ? 'bg-cyan-50 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-void-card'
+                      ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50'
+                      : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60'
                   }`}
                 >
-                  <div className="flex items-center space-x-2.5">
-                    <Icon className="h-4 w-4" />
-                    <span>{item.label}</span>
-                  </div>
-                  {isActive && <CheckCircle2 className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />}
+                  <Icon className={`h-3.5 w-3.5 ${isActive ? 'text-emerald-500' : ''}`} />
+                  {item.label}
                 </button>
               );
             })}
-          </div>
+          </nav>
 
-          <div className="pt-3 border-t border-slate-200 dark:border-void-border space-y-3">
-            <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                Hardware Inference Tier
-              </span>
+          {/* Desktop Controls */}
+          <div className="hidden md:flex items-center gap-2">
+            {/* Tier selector */}
+            <div className="relative flex items-center gap-1.5 h-8 px-3 rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 text-xs text-zinc-600 dark:text-zinc-400">
+              <Cpu className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500 flex-shrink-0" />
               <select
-                aria-label="Hardware Inference Mode Selection"
+                aria-label="Hardware Inference Mode"
                 value={tier}
                 onChange={(e) => setTier(e.target.value as CapabilityTier)}
-                className="w-full bg-slate-100 dark:bg-void-card border border-slate-200 dark:border-void-border rounded-lg p-2 text-xs font-semibold text-slate-800 dark:text-slate-200"
+                className="bg-transparent text-zinc-700 dark:text-zinc-300 font-medium focus:outline-none cursor-pointer text-xs pr-1"
               >
-                <option value="TIER_A_NANO">Tier A: Gemini Nano (On-Device)</option>
-                <option value="TIER_B_NO_NANO">Tier B: Curated Judge Mode</option>
-                <option value="TIER_C_OFFLINE">Tier C: Offline Only</option>
+                <option value="TIER_A_NANO">Nano On-Device</option>
+                <option value="TIER_B_NO_NANO">Judge Mode</option>
+                <option value="TIER_C_OFFLINE">Offline</option>
               </select>
+              <ChevronDown className="h-3 w-3 text-zinc-400 pointer-events-none" />
             </div>
 
+            {/* Kill switch */}
             <button
               onClick={toggleKillSwitch}
-              className={`w-full flex items-center justify-center space-x-2 p-2.5 rounded-lg text-xs font-semibold border transition ${
+              className={`btn-press flex items-center gap-1.5 h-8 px-3 rounded-md text-xs font-medium border transition-colors ${
                 cloudEnabled
-                  ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
-                  : 'bg-rose-50 dark:bg-rose-950/60 border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300'
+                  ? 'border-emerald-200 dark:border-emerald-800/60 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'
+                  : 'border-red-200 dark:border-red-800/60 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40'
               }`}
             >
-              <Power className="h-4 w-4" />
-              <span>Remote Config Cloud Status: {cloudEnabled ? 'ENABLED' : 'HALTED'}</span>
+              <Power className="h-3.5 w-3.5" />
+              <span>Cloud {cloudEnabled ? 'On' : 'Off'}</span>
             </button>
+
+            {/* Theme */}
+            <button
+              onClick={toggleTheme}
+              aria-label="Toggle theme"
+              className="btn-press flex items-center justify-center h-8 w-8 rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+            >
+              {theme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+            </button>
+          </div>
+
+          {/* Mobile controls */}
+          <div className="flex md:hidden items-center gap-2">
+            <button
+              onClick={toggleTheme}
+              className="flex items-center justify-center h-8 w-8 rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
+            >
+              {theme === 'dark' ? <Sun className="h-3.5 w-3.5 text-zinc-400" /> : <Moon className="h-3.5 w-3.5 text-zinc-600" />}
+            </button>
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="flex items-center justify-center h-8 w-8 rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
+            >
+              {mobileMenuOpen ? <X className="h-4 w-4 text-zinc-600 dark:text-zinc-400" /> : <Menu className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 animate-slide-down">
+          <div className="max-w-7xl mx-auto px-4 py-3 space-y-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleSelectTab(item.id)}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50'
+                      : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/60'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Icon className={`h-4 w-4 ${isActive ? 'text-emerald-500' : 'text-zinc-400'}`} />
+                    {item.label}
+                  </div>
+                  {isActive && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
+                </button>
+              );
+            })}
+
+            <div className="pt-3 mt-2 border-t border-zinc-100 dark:border-zinc-800 space-y-2">
+              <div className="flex items-center gap-2 px-3">
+                <Cpu className="h-3.5 w-3.5 text-zinc-400" />
+                <select
+                  value={tier}
+                  onChange={(e) => setTier(e.target.value as CapabilityTier)}
+                  className="flex-1 bg-transparent text-sm font-medium text-zinc-700 dark:text-zinc-300 focus:outline-none"
+                >
+                  <option value="TIER_A_NANO">Nano On-Device</option>
+                  <option value="TIER_B_NO_NANO">Judge Mode</option>
+                  <option value="TIER_C_OFFLINE">Offline</option>
+                </select>
+              </div>
+              <button
+                onClick={toggleKillSwitch}
+                className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium border transition-colors ${
+                  cloudEnabled
+                    ? 'border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40'
+                    : 'border-red-200 dark:border-red-800/60 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40'
+                }`}
+              >
+                <Power className="h-4 w-4" />
+                Cloud {cloudEnabled ? 'Enabled' : 'Disabled'}
+              </button>
+            </div>
           </div>
         </div>
       )}

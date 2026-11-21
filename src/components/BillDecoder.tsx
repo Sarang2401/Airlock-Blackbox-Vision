@@ -142,28 +142,7 @@ export const BillDecoder: React.FC<BillDecoderProps> = ({ tier }) => {
               analysisReasoning: 'Policy wording establishes a 24-month waiting period for pre-existing conditions, which the insured has fully satisfied under continuous renewal records.',
             },
           ],
-          draftAppealLetter: `To:
-The Claims Grievance Redressal Officer,
-Suraksha Health Insurance Co. Ltd.
-
-Subject: Formal Grievance & Appeal against Repudiation of Claim No. [CLAIM_NO_${caseSession.caseNonce}_1] (Policy No. [POLICY_NO_${caseSession.caseNonce}_1])
-Patient: [PATIENT_${caseSession.caseNonce}_1] | Hospital: [HOSPITAL_${caseSession.caseNonce}_1]
-Hospitalization Dates: [DATE_DREF_1:2026-10-04] to [DATE_DREF_2:2026-10-08]
-
-Respected Sir/Madam,
-
-I am writing to formally contest the repudiation of the above-referenced hospitalization claim under Policy Clause 4.2.
-
-1. Validity of Coverage: The repudiation letter claims a 36-month pre-existing exclusion. However, Section 4, Clause 4.2 of the applicable policy schedule explicitly confirms that pre-existing coverage commences after 24 continuous months. The policy has been maintained continuously without break since inception.
-
-2. Inpatient Treatment: The patient was admitted to [HOSPITAL_${caseSession.caseNonce}_1] for an acute medical emergency, requiring urgent CCU care.
-
-3. Billing Rectification: We also draw attention to Line 6 of the hospital bill containing an unverified duplicate lab monitoring fee of Rs. 4,500, which has been flagged for audit.
-
-In light of the documentary evidence attached, I request immediate reconsideration and settlement of the admissible claim amount within 15 days, failing which this matter will be escalated to the Insurance Ombudsman.
-
-Yours sincerely,
-[PATIENT_${caseSession.caseNonce}_1]`,
+          draftAppealLetter: `To:\nThe Claims Grievance Redressal Officer,\nSuraksha Health Insurance Co. Ltd.\n\nSubject: Formal Grievance & Appeal against Repudiation of Claim No. [CLAIM_NO_${caseSession.caseNonce}_1] (Policy No. [POLICY_NO_${caseSession.caseNonce}_1])\nPatient: [PATIENT_${caseSession.caseNonce}_1] | Hospital: [HOSPITAL_${caseSession.caseNonce}_1]\nHospitalization Dates: [DATE_DREF_1:2026-10-04] to [DATE_DREF_2:2026-10-08]\n\nRespected Sir/Madam,\n\nI am writing to formally contest the repudiation of the above-referenced hospitalization claim under Policy Clause 4.2.\n\n1. Validity of Coverage: The repudiation letter claims a 36-month pre-existing exclusion. However, Section 4, Clause 4.2 of the applicable policy schedule explicitly confirms that pre-existing coverage commences after 24 continuous months. The policy has been maintained continuously without break since inception.\n\n2. Inpatient Treatment: The patient was admitted to [HOSPITAL_${caseSession.caseNonce}_1] for an acute medical emergency, requiring urgent CCU care.\n\n3. Billing Rectification: We also draw attention to Line 6 of the hospital bill containing an unverified duplicate lab monitoring fee of Rs. 4,500, which has been flagged for audit.\n\nIn light of the documentary evidence attached, I request immediate reconsideration and settlement of the admissible claim amount within 15 days, failing which this matter will be escalated to the Insurance Ombudsman.\n\nYours sincerely,\n[PATIENT_${caseSession.caseNonce}_1]`,
           supportingChecklist: [
             'Attested Copy of Initial Policy Inception Certificate proving >24 months continuity',
             'Indoor Case Papers and CCU Admission Chart from [HOSPITAL_1]',
@@ -198,116 +177,124 @@ Yours sincerely,
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs select-none">
-        {steps.map((st) => (
-          <div
-            key={st.num}
-            className={`p-3 rounded-xl border flex items-center space-x-2 transition ${
-              st.done
-                ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
-                : st.active
-                ? 'bg-cyan-50 dark:bg-cyan-950/40 border-cyan-300 dark:border-cyan-800 text-cyan-800 dark:text-cyan-300 font-bold'
-                : 'bg-white dark:bg-void-card border-slate-200 dark:border-void-border text-slate-400'
-            }`}
-          >
-            <span className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-              st.done
-                ? 'bg-emerald-500 text-white'
-                : st.active
-                ? 'bg-cyan-500 text-white'
-                : 'bg-slate-200 dark:bg-void-elevated text-slate-500'
-            }`}>
-              {st.done ? '✓' : st.num}
-            </span>
-            <span className="truncate">{st.label}</span>
-          </div>
+      {/* Step tracker */}
+      <div className="flex items-center select-none">
+        {steps.map((st, idx) => (
+          <React.Fragment key={st.num}>
+            <div className="flex items-center gap-2 min-w-0">
+              <span
+                className={`flex-shrink-0 h-6 w-6 rounded-full flex items-center justify-center text-[11px] font-semibold ${
+                  st.done
+                    ? 'bg-emerald-500 text-white'
+                    : st.active
+                    ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 ring-2 ring-zinc-900/20 dark:ring-zinc-100/20'
+                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500'
+                }`}
+              >
+                {st.done ? '✓' : st.num}
+              </span>
+              <span
+                className={`text-xs font-medium truncate hidden sm:block ${
+                  st.done
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : st.active
+                    ? 'text-zinc-900 dark:text-zinc-50'
+                    : 'text-zinc-400 dark:text-zinc-500'
+                }`}
+              >
+                {st.label}
+              </span>
+            </div>
+            {idx < steps.length - 1 && (
+              <div className={`flex-1 h-px mx-3 ${st.done ? 'bg-emerald-300 dark:bg-emerald-700' : 'bg-zinc-200 dark:bg-zinc-800'}`} />
+            )}
+          </React.Fragment>
         ))}
       </div>
 
-      <div className="bg-white dark:bg-void-card border border-slate-200/90 dark:border-void-border rounded-2xl p-5 sm:p-6 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2 tracking-tight">
-              <FileText className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
-              Bill & Claim Decoder Workspace
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Select a curated synthetic healthcare case or upload itemized paperwork for local privacy gate review.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5">
-            <select
-              aria-label="Curated Synthetic Healthcare Case Selection"
-              value={selectedSample.id}
-              onChange={(e) => {
-                const found = SYNTHETIC_SAMPLE_CASES.find((s) => s.id === e.target.value);
-                if (found) {
-                  setSelectedSample(found);
-                  setCaseSession(null);
-                  setPreparedPayload(null);
-                  setDisputePackResult(null);
-                }
-              }}
-              className="bg-slate-50 dark:bg-void-950 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 rounded-xl px-3 py-2.5 cursor-pointer focus:outline-none"
-            >
-              {SYNTHETIC_SAMPLE_CASES.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.jurisdiction === 'IN' ? '🇮🇳' : '🇺🇸'} {s.title}
-                </option>
-              ))}
-            </select>
-
-            <button
-              onClick={handleRunDetection}
-              disabled={isScanning}
-              className="btn-tactile px-5 py-2.5 bg-gradient-to-r from-cyan-600 via-teal-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 transition shadow-lg shadow-cyan-500/20"
-            >
-              <Sparkles className="h-4 w-4" />
-              <span>{isScanning ? 'Scanning on Device...' : 'Run Local Detection (ONLY_ON_DEVICE)'}</span>
-            </button>
-          </div>
+      {/* Workspace card */}
+      <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-900 p-6">
+        <div>
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
+            <FileText className="h-4 w-4 text-emerald-500" />
+            Bill &amp; Claim Decoder Workspace
+          </h2>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+            Select a curated synthetic healthcare case or upload itemized paperwork for local privacy gate review.
+          </p>
         </div>
 
-        <div className="mt-5 pt-4 border-t border-slate-200 dark:border-void-border grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-          <div className="bg-slate-50 dark:bg-void-950/60 p-3 rounded-xl border border-slate-200/80 dark:border-void-border">
-            <span className="text-slate-400 block mb-0.5 text-[11px] font-medium">Documents in Bundle:</span>
-            <span className="text-slate-800 dark:text-slate-200 font-semibold truncate block">
+        <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800 flex flex-wrap items-center gap-3">
+          <select
+            aria-label="Curated Synthetic Healthcare Case Selection"
+            value={selectedSample.id}
+            onChange={(e) => {
+              const found = SYNTHETIC_SAMPLE_CASES.find((s) => s.id === e.target.value);
+              if (found) {
+                setSelectedSample(found);
+                setCaseSession(null);
+                setPreparedPayload(null);
+                setDisputePackResult(null);
+              }
+            }}
+            className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-800 dark:text-zinc-200 rounded-lg px-3 h-9 cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+          >
+            {SYNTHETIC_SAMPLE_CASES.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.jurisdiction === 'IN' ? '🇮🇳' : '🇺🇸'} {s.title}
+              </option>
+            ))}
+          </select>
+
+          <button
+            onClick={handleRunDetection}
+            disabled={isScanning}
+            className="btn-press flex items-center gap-1.5 h-9 px-4 bg-emerald-500 hover:bg-emerald-600 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 text-white text-sm font-semibold rounded-lg transition-colors"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>{isScanning ? 'Scanning on Device...' : 'Run Local Detection'}</span>
+          </button>
+        </div>
+
+        {/* Case meta */}
+        <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <span className="text-xs text-zinc-500 font-medium block mb-1">Documents in Bundle</span>
+            <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate block">
               {selectedSample.documents.map((d) => d.displayName).join(', ')}
             </span>
           </div>
-          <div className="bg-slate-50 dark:bg-void-950/60 p-3 rounded-xl border border-slate-200/80 dark:border-void-border">
-            <span className="text-slate-400 block mb-0.5 text-[11px] font-medium">Jurisdiction & Currency:</span>
-            <span className="text-slate-800 dark:text-slate-200 font-semibold">
+          <div>
+            <span className="text-xs text-zinc-500 font-medium block mb-1">Jurisdiction &amp; Currency</span>
+            <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
               {selectedSample.jurisdiction === 'IN' ? '🇮🇳 India (INR ₹)' : '🇺🇸 United States (USD $)'}
             </span>
           </div>
-          <div className="bg-slate-50 dark:bg-void-950/60 p-3 rounded-xl border border-slate-200/80 dark:border-void-border">
-            <span className="text-slate-400 block mb-0.5 text-[11px] font-medium">Target Dispute Grounds:</span>
-            <span className="text-cyan-600 dark:text-cyan-400 font-semibold truncate block">
+          <div>
+            <span className="text-xs text-zinc-500 font-medium block mb-1">Target Dispute Grounds</span>
+            <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate block">
               {selectedSample.expectedIssues[0]}
             </span>
           </div>
         </div>
       </div>
 
+      {/* Scanning state */}
       {isScanning && (
-        <div className="scanline-container bg-slate-900 border border-cyan-800 rounded-2xl p-6 text-center space-y-3 shadow-xl">
+        <div className="scanline-container bg-zinc-900 border border-zinc-700 rounded-xl p-6 text-center space-y-3">
           <div className="scanline-beam" />
-          <div className="flex items-center justify-center space-x-2 text-cyan-400 font-mono text-sm font-bold">
-            <Shield className="h-5 w-5 animate-pulse" />
+          <div className="flex items-center justify-center gap-2 text-emerald-400 font-mono text-sm font-semibold">
+            <Shield className="h-4 w-4" />
             <span>GEMINI NANO ON-DEVICE PRIVACY PASS IN PROGRESS</span>
           </div>
-          <p className="text-xs text-slate-400 font-mono">
+          <p className="text-xs text-zinc-400 font-mono">
             Evaluating 12-digit Aadhaar Verhoeff checksums, PAN patterns, policy keys, and clinical entities locally...
           </p>
         </div>
       )}
 
       {errorMsg && (
-        <div className="p-4 bg-rose-50 dark:bg-rose-950/80 border border-rose-300 dark:border-rose-800 rounded-xl text-rose-800 dark:text-rose-200 text-xs font-semibold">
-          {errorMsg}
-        </div>
+        <p className="text-sm text-red-500">{errorMsg}</p>
       )}
 
       {caseSession && preparedPayload && !isScanning && (
