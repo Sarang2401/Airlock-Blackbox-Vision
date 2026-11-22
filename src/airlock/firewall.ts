@@ -10,6 +10,23 @@
  */
 import { DisputePack, TransformationMap } from '../contracts/types';
 import { DisputePackSchema } from '../contracts/schemas';
+import { z } from 'zod';
+import { liveJudgeIssueKinds, type LiveJudgeIssue } from '../ingestion/liveJudgeCase';
+
+const liveJudgeOutputSchema = z.object({
+  issues: z.array(z.enum(liveJudgeIssueKinds)).max(liveJudgeIssueKinds.length)
+    .refine((issues) => new Set(issues).size === issues.length),
+}).strict();
+
+export function validateLiveJudgeOutput(text: string): LiveJudgeIssue[] | null {
+  if (text.length > 1024) return null;
+  try {
+    const result = liveJudgeOutputSchema.safeParse(JSON.parse(text));
+    return result.success ? result.data.issues : null;
+  } catch {
+    return null;
+  }
+}
 
 export interface FirewallResult {
   passed: boolean;

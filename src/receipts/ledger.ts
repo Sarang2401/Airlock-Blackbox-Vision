@@ -3,7 +3,8 @@ import { canonicalJsonStringify, sha256Hex } from '../contracts/canonical';
 
 export const GENESIS_HASH = '0000000000000000000000000000000000000000000000000000000000000000';
 
-const STORAGE_KEY = 'airlock_receipt_ledger';
+const storageScope = import.meta.env.BASE_URL;
+const STORAGE_KEY = storageScope === '/' ? 'airlock_receipt_ledger' : `airlock_receipt_ledger:${storageScope}`;
 const CHANGE_EVENT = 'escrowhealth:receipts-changed';
 
 interface ReceiptInput {

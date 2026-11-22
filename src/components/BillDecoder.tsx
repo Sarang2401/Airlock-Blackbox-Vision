@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowRight, Check, ChevronDown, FileCheck2, FileText, Layers, LockKeyhole, ScanLine, ShieldCheck } from 'lucide-react';
 import { SYNTHETIC_SAMPLE_CASES } from '../ingestion/syntheticSamples';
 import { buildSampleDisputePack } from '../ingestion/sampleDisputePack';
@@ -15,6 +15,10 @@ import { useToast } from './ToastProvider';
 import { SplitScreenReview } from './SplitScreenReview';
 import { DisputePackView } from './DisputePackView';
 import { CaseSession, DisputePack, CapabilityTier } from '../contracts/types';
+import { liveJudgeConfigured } from '../firebase/config';
+import { remoteConfigManager } from '../firebase/remoteConfig';
+import { liveJudgeSample, prepareLiveJudgeRequest } from '../ingestion/liveJudgeCase';
+import { documentNames } from './documentNames';
 
 interface BillDecoderProps {
   tier: CapabilityTier;
@@ -23,13 +27,6 @@ interface BillDecoderProps {
   previewRevision: number;
   onOpenReceipts: () => void;
 }
-
-const documentNames = {
-  BILL: 'Itemized bill',
-  DENIAL_LETTER: 'Insurer decision',
-  POLICY: 'Policy wording',
-  DISCHARGE_SUMMARY: 'Discharge summary',
-};
 
 const steps = ['Choose a case', 'Review privacy', 'Read the draft'];
 const privacySteps = [
@@ -79,6 +76,13 @@ export function BillDecoder({ tier, online, cloudEnabled, previewRevision, onOpe
   const focusReview = useRef(false);
   const busy = isScanning || isRefreshing || isDispatching;
   const stage = result ? 2 : review ? 1 : 0;
+  const wantsLive = liveJudgeConfigured && tier === 'TIER_B_NO_NANO' && selectedSample === liveJudgeSample;
+  const livePreview = Boolean(review?.prepared.request.execution);
+  const currentLiveRevision = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    currentLiveRevision.current = wantsLive && online && cloudEnabled ? previewRevision : null;
+  }, [wantsLive, online, cloudEnabled, previewRevision]);
 
   useEffect(() => {
     const section = result ? resultSection.current : focusReview.current ? reviewSection.current : null;
@@ -125,18 +129,20 @@ export function BillDecoder({ tier, online, cloudEnabled, previewRevision, onOpe
           ? 'The local scan found details that still need review.'
           : eligibility.reason,
       };
-      const prepared = await buildPreparedDisputeRequest({
-        caseSession: session,
-        sanitizedDocs: transform.sanitizedDocuments.map((doc, index) => ({
-          id: doc.documentId,
-          kind: documents[index].kind,
-          sanitizedText: doc.sanitizedText,
-        })),
-        targetCloudModel: 'gemini-2.5-flash',
-        promptInstructions: 'Review billing line items and policy wording. Draft an appeal and identify uncertainty.',
-        jurisdiction: selectedSample.jurisdiction,
-        currency: selectedSample.currency,
-      });
+      const prepared = wantsLive
+        ? await prepareLiveJudgeRequest(session, remoteConfigManager.getPolicy().policyVersion)
+        : await buildPreparedDisputeRequest({
+          caseSession: session,
+          sanitizedDocs: transform.sanitizedDocuments.map((doc, index) => ({
+            id: doc.documentId,
+            kind: documents[index].kind,
+            sanitizedText: doc.sanitizedText,
+          })),
+          targetCloudModel: 'gemini-2.5-flash',
+          promptInstructions: 'Review billing line items and policy wording. Draft an appeal and identify uncertainty.',
+          jurisdiction: selectedSample.jurisdiction,
+          currency: selectedSample.currency,
+        });
       await scanMotion;
       focusReview.current = moveFocus;
       setReview({ session, prepared, hasResidualWarnings: transform.residualWarnings.length > 0, previewRevision });
@@ -153,7 +159,7 @@ export function BillDecoder({ tier, online, cloudEnabled, previewRevision, onOpe
   const approvalBlock = !online || tier === 'TIER_C_OFFLINE'
     ? 'Offline mode is active. You can still review the protected copy.'
     : !cloudEnabled
-      ? 'The simulated cloud route is paused in preview settings.'
+      ? 'The analysis route is paused in preview settings.'
       : review?.hasResidualWarnings
         ? 'The local scan found details that still need review.'
         : canRefresh
@@ -162,20 +168,26 @@ export function BillDecoder({ tier, online, cloudEnabled, previewRevision, onOpe
 
   async function refreshPreview() {
     if (!review || !canRefresh || busy) return;
-    setIsRefreshing(true);
     setApprovalHash(null);
+    if (livePreview !== wantsLive) {
+      await runDetection();
+      return;
+    }
+    setIsRefreshing(true);
     setError(null);
     try {
       const session = { ...review.session, revision: review.session.revision + 1, capabilityTier: tier, isEligibleForCloud: true, ineligibilityReason: undefined };
       const request = review.prepared.request;
-      const prepared = await buildPreparedDisputeRequest({
-        caseSession: session,
-        sanitizedDocs: request.sanitizedDocuments,
-        targetCloudModel: request.targetCloudModel,
-        promptInstructions: request.promptInstructions,
-        jurisdiction: request.jurisdiction,
-        currency: request.currency,
-      });
+      const prepared = livePreview
+        ? await prepareLiveJudgeRequest(session, remoteConfigManager.getPolicy().policyVersion)
+        : await buildPreparedDisputeRequest({
+          caseSession: session,
+          sanitizedDocs: request.sanitizedDocuments,
+          targetCloudModel: request.targetCloudModel,
+          promptInstructions: request.promptInstructions,
+          jurisdiction: request.jurisdiction,
+          currency: request.currency,
+        });
       focusReview.current = true;
       setReview({ ...review, session, prepared, previewRevision });
     } catch {
@@ -204,12 +216,13 @@ export function BillDecoder({ tier, online, cloudEnabled, previewRevision, onOpe
     const { prepared, session } = review;
     try {
       await nextPaint();
-      consentMachine.grantConsent(prepared.requestHash, session.revision);
+      consentMachine.grantConsent(prepared.requestHash, session.revision, prepared.request.execution?.policyVersion);
       const response = await dispatchDisputePack({
         preparedRequest: prepared.request,
         requestHash: prepared.requestHash,
         transformationMap: session.transformationMap,
         mockGenerator: () => buildSampleDisputePack(selectedSample, prepared.request.allowedPlaceholders),
+        isLiveJudgeCurrent: () => session.isEligibleForCloud && currentLiveRevision.current === review.previewRevision,
       });
       if (!response.success || !response.rehydratedData) {
         const message = response.error ?? 'The sample analysis did not complete. Try approving again.';
@@ -233,7 +246,7 @@ export function BillDecoder({ tier, online, cloudEnabled, previewRevision, onOpe
         <div className="hero-copy">
           <p className="eyebrow hero-kicker"><ShieldCheck size={16} aria-hidden="true" /> Private bill review</p>
           <h1 id="decoder-title" tabIndex={-1}>Understand your bill.<br /><em>Keep it private.</em></h1>
-          <p>Try a fictional bill or claim decision. See what a protected request contains before running a local simulation.</p>
+          <p>{liveJudgeConfigured ? 'Try a fictional bill or claim decision. Review the protected evidence before approving any analysis.' : 'Try a fictional bill or claim decision. See what a protected request contains before running a local simulation.'}</p>
         </div>
         <PrivacyIllustration scanning={isScanning} />
       </section>
@@ -330,7 +343,9 @@ export function BillDecoder({ tier, online, cloudEnabled, previewRevision, onOpe
       {isDispatching && <PendingPanel label="Recording approval and preparing your sample draft…" />}
       {error && <p className="error-notice" role={review ? undefined : 'alert'}>{error}</p>}
       {approvalHash && review && (
-        <ConfirmDialog title="Approve this sample analysis?" description="Approval is for the exact protected request you reviewed. EscrowHealth records a privacy receipt, then runs a local simulation." confirmLabel="Confirm approval" disabled={Boolean(approvalBlock) || busy || approvalHash !== review.prepared.requestHash} onCancel={() => setApprovalHash(null)} onConfirm={() => void approve()}>
+        <ConfirmDialog title="Approve this sample analysis?" description={livePreview
+          ? 'EscrowHealth records a privacy receipt before sending the exact protected fictional excerpts you reviewed to Firebase AI Logic.'
+          : 'Approval is for the exact protected request you reviewed. EscrowHealth records a privacy receipt, then runs a local simulation.'} confirmLabel="Confirm approval" disabled={Boolean(approvalBlock) || busy || approvalHash !== review.prepared.requestHash} onCancel={() => setApprovalHash(null)} onConfirm={() => void approve()}>
           <dl className="confirm-facts">
             <div><dt>Documents in request</dt><dd>{review.prepared.request.sanitizedDocuments.length}</dd></div>
             <div><dt>Request fingerprint</dt><dd><code>{approvalHash}</code></dd></div>
@@ -348,7 +363,7 @@ export function BillDecoder({ tier, online, cloudEnabled, previewRevision, onOpe
       )}
       {result?.rehydratedData && (
         <div ref={resultSection} className="focus-region" tabIndex={-1} aria-label="Sample dispute pack">
-          <DisputePackView disputePack={result.rehydratedData} source={result.source} latencyMs={result.latencyMs} />
+          <DisputePackView disputePack={result.rehydratedData} source={result.source} latencyMs={result.latencyMs} executionKind={result.executionKind} />
         </div>
       )}
     </div>

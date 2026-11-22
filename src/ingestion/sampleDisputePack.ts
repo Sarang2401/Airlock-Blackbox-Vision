@@ -1,11 +1,17 @@
 import { DisputePack } from '../contracts/types';
 import { SyntheticSampleCase } from './syntheticSamples';
+import { liveJudgeSample, type LiveJudgeIssue } from './liveJudgeCase';
 
 type Finding = DisputePack['findings'][number];
 
-export function buildSampleDisputePack(sample: SyntheticSampleCase, tokens: string[]): DisputePack {
+function draftAppeal(tokens: string[], request: string) {
   const patient = tokens.find((token) => token.startsWith('[PATIENT_')) ?? 'the sample patient';
   const claim = tokens.find((token) => token.startsWith('[CLAIM_NO_')) ?? 'the claim referenced in the attached paperwork';
+  return `To the billing or claims review team,\n\nPlease review ${claim}.\n\n${request}\n\nPlease confirm receipt and let me know what documents you need to complete the review.\n\nSincerely,\n${patient}`;
+}
+
+export function buildSampleDisputePack(sample: SyntheticSampleCase, tokens: string[]): DisputePack {
+  const patient = tokens.find((token) => token.startsWith('[PATIENT_')) ?? 'the sample patient';
   const isIndia = sample.jurisdiction === 'IN';
   const findings: Finding[] = isIndia ? [
     {
@@ -61,10 +67,31 @@ export function buildSampleDisputePack(sample: SyntheticSampleCase, tokens: stri
       disputeStrength: 'NEEDS_MORE_DOCUMENTATION',
       analysisReasoning: 'The supplied policy wording says 24 months with continuous coverage. The applicable policy version and renewal history still need verification.',
     }] : [],
-    draftAppealLetter: `To the billing or claims review team,\n\nPlease review ${claim}.\n\n${request}\n\nPlease confirm receipt and let me know what documents you need to complete the review.\n\nSincerely,\n${patient}`,
+    draftAppealLetter: draftAppeal(tokens, request),
     supportingChecklist: isIndia
       ? ['Itemized bill and denial letter', 'Policy schedule in force on the admission date', 'Evidence of uninterrupted policy renewals']
       : ['Itemized hospital bill', 'Explanation of benefits', 'Written explanation of provider network status'],
     disclaimerNotice: 'This example uses fictional paperwork and simulated analysis. Verify your documents and deadlines before sending an appeal.',
+  };
+}
+
+export function buildLiveJudgeDisputePack(issues: LiveJudgeIssue[], tokens: string[]): DisputePack {
+  const sample = buildSampleDisputePack(liveJudgeSample, tokens);
+  const duplicate = issues.includes('DUPLICATE_CHARGE');
+  const waitingPeriod = issues.includes('WAITING_PERIOD_CONFLICT');
+  const questions = [
+    duplicate && 'Please confirm whether the two arterial blood gas monitoring entries are separate services.',
+    waitingPeriod && 'Please reconcile the 36-month period cited in the denial with the 24-month period in the supplied policy wording. Confirm which policy version applies.',
+  ].filter(Boolean).join(' ');
+
+  return {
+    summary: issues.length
+      ? `Gemini flagged ${issues.length === 1 ? 'one question' : 'two questions'} in the protected fictional excerpts. The appeal draft was assembled on this device from the flagged evidence.`
+      : 'Gemini did not flag either of the two issues it was asked to check in these fictional excerpts.',
+    findings: duplicate ? sample.findings.filter((finding) => finding.type === 'DUPLICATE_CHARGE') : [],
+    policyClauseAnalysis: waitingPeriod ? sample.policyClauseAnalysis : [],
+    draftAppealLetter: draftAppeal(tokens, questions || 'Please provide an itemized explanation of the reviewed charges.'),
+    supportingChecklist: sample.supportingChecklist,
+    disclaimerNotice: 'This example uses fictional paperwork. The limited review cannot determine coverage or establish that a charge is incorrect.',
   };
 }

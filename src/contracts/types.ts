@@ -10,6 +10,7 @@ export type InferenceMode =
   | 'PREFER_IN_CLOUD';
 
 export type InferenceSource = 'ON_DEVICE' | 'IN_CLOUD' | 'UNKNOWN';
+export type ExecutionKind = 'LIVE' | 'SIMULATED';
 
 export type CapabilityTier = 'TIER_A_NANO' | 'TIER_B_NO_NANO' | 'TIER_C_OFFLINE';
 
@@ -102,6 +103,7 @@ export interface PreparedRequest {
   currency: string;
   promptInstructions: string;
   allowedPlaceholders: string[];
+  execution?: { kind: 'FIREBASE_JUDGE_V1'; policyVersion: string };
 }
 
 export interface ConsentRecord {
@@ -165,6 +167,7 @@ export interface ReceiptEvent {
   canonicalRequestHash?: string;
   sanitizedPayloadLength?: number;
   modelIdentifier?: string;
+  executionKind?: ExecutionKind;
   status: 'PENDING' | 'SUCCESS' | 'FIREWALL_BLOCKED' | 'ERROR' | 'CANCELLED';
   errorMessage?: string;
 }

@@ -11,14 +11,18 @@
  * 5. Rehydration strictly localized to active case mapping.
  * 6. OUTCOME receipt appended upon completion or failure.
  */
-import { PreparedRequest, DisputePack, TransformationMap } from '../contracts/types';
+import { PreparedRequest, DisputePack, TransformationMap, ExecutionKind, ReceiptEvent } from '../contracts/types';
 import { PreparedRequestSchema } from '../contracts/schemas';
 import { canonicalJsonStringify, sha256Hex } from '../contracts/canonical';
 import { consentMachine } from '../approval/consentMachine';
 import { remoteConfigManager } from '../firebase/remoteConfig';
 import { receiptLedger } from '../receipts/ledger';
 import { firebaseAIAdapter } from '../firebase/aiAdapter';
-import { validateAndRehydrateDisputePack } from '../airlock/firewall';
+import { validateAndRehydrateDisputePack, validateLiveJudgeOutput } from '../airlock/firewall';
+import { liveJudgeConfigured } from '../firebase/config';
+import { isLiveJudgeEnvelope } from '../ingestion/liveJudgeCase';
+import { buildLiveJudgeDisputePack } from '../ingestion/sampleDisputePack';
+import { blackBoxStore } from '../../packages/black-box';
 
 export interface DispatchResult<T> {
   success: boolean;
@@ -26,6 +30,7 @@ export interface DispatchResult<T> {
   sanitizedData?: T;
   source?: 'ON_DEVICE' | 'IN_CLOUD' | 'UNKNOWN';
   latencyMs?: number;
+  executionKind?: ExecutionKind;
   error?: string;
   firewallViolations?: string[];
 }
@@ -35,6 +40,7 @@ export async function dispatchDisputePack(params: {
   requestHash: string;
   transformationMap: TransformationMap;
   mockGenerator: (source: any) => DisputePack;
+  isLiveJudgeCurrent?: () => boolean;
 }): Promise<DispatchResult<DisputePack>> {
   const { requestHash, transformationMap, mockGenerator } = params;
 
@@ -48,6 +54,17 @@ export async function dispatchDisputePack(params: {
   }
 
   const preparedRequest = schemaValidation.data;
+  const live = preparedRequest.execution;
+  const executionKind: ExecutionKind = live ? 'LIVE' : 'SIMULATED';
+  const canUseLiveRoute = () => {
+    const policy = remoteConfigManager.getPolicy();
+    return liveJudgeConfigured && params.isLiveJudgeCurrent?.() === true
+      && live?.policyVersion === policy.policyVersion
+      && policy.allowedCloudModels.includes(preparedRequest.targetCloudModel);
+  };
+  const canDispatch = () => remoteConfigManager.isCloudEnabled()
+    && (typeof navigator === 'undefined' || navigator.onLine !== false)
+    && (!live || canUseLiveRoute());
 
   // 2. Kill Switch Check
   if (!remoteConfigManager.isCloudEnabled()) {
@@ -56,6 +73,9 @@ export async function dispatchDisputePack(params: {
       error: 'Cloud dispatch blocked: Remote Config kill switch is active (cloudEnabled=false).',
     };
   }
+  if (live && (!isLiveJudgeEnvelope(preparedRequest, transformationMap) || !canUseLiveRoute())) {
+    return { success: false, error: 'Live Firebase is available only for the verified Judge Mode preview. Scan the fictional case again.' };
+  }
 
   // 3. Bind approval to the exact immutable payload and reserve single-use consent.
   const canonicalRequest = canonicalJsonStringify(preparedRequest);
@@ -63,7 +83,8 @@ export async function dispatchDisputePack(params: {
     return { success: false, error: 'The approved fingerprint no longer matches this request. Review the case again.' };
   }
   const consent = consentMachine.getConsent();
-  if (!consent || !consentMachine.isConsentValid(requestHash, preparedRequest.caseRevision)) {
+  if (!consent || (live && consent.policyRevision !== live.policyVersion)
+    || !consentMachine.isConsentValid(requestHash, preparedRequest.caseRevision)) {
     return { success: false, error: 'Approval is missing or has already been used. Review the request and approve again.' };
   }
   consentMachine.consumeConsent(consent.consentId);
@@ -75,9 +96,10 @@ export async function dispatchDisputePack(params: {
     requestedMode: preparedRequest.requestedMode,
     canonicalRequestHash: requestHash,
     modelIdentifier: preparedRequest.targetCloudModel,
+    executionKind,
   };
 
-  // 4. Persist INTENT before starting the simulation.
+  // 4. Persist INTENT before starting an SDK call or simulation.
   try {
     await receiptLedger.appendEvent({
       ...receipt,
@@ -89,62 +111,65 @@ export async function dispatchDisputePack(params: {
     return { success: false, error: 'Approval could not be recorded in this browser. Check storage access and try again.' };
   }
 
-  // 5. Execute Hybrid Inference
-  try {
-    if (!remoteConfigManager.isCloudEnabled() || (typeof window !== 'undefined' && !navigator.onLine)) {
-      await receiptLedger.appendEvent({ ...receipt, eventType: 'OUTCOME', status: 'CANCELLED' });
-      return { success: false, error: 'The route became unavailable. Check your settings or connection and approve again.' };
-    }
-
-    const aiResponse = await firebaseAIAdapter.executeInference<DisputePack>({
-      featureName: 'dispute_pack_reasoning',
-      mode: preparedRequest.requestedMode,
-      prompt: canonicalRequest,
-      modelName: preparedRequest.targetCloudModel,
-      mockGenerator,
-    });
-
-    // 6. Output Firewall Verification & Local Rehydration
-    const firewallResult = validateAndRehydrateDisputePack(aiResponse.data, transformationMap);
-
-    if (!firewallResult.passed) {
-      // Append firewall blocked outcome receipt
-      await receiptLedger.appendEvent({
-        ...receipt,
-        eventType: 'OUTCOME',
-        actualSource: aiResponse.source,
-        status: 'FIREWALL_BLOCKED',
-        errorMessage: firewallResult.blockReason,
-      });
-
-      return {
-        success: false,
-        error: firewallResult.blockReason,
-        firewallViolations: firewallResult.violations,
-      };
-    }
-
-    // 7. Append SUCCESS Outcome Receipt
-    await receiptLedger.appendEvent({
-      ...receipt,
-      eventType: 'OUTCOME',
-      actualSource: aiResponse.source,
-      status: 'SUCCESS',
-    });
-
-    return {
-      success: true,
-      rehydratedData: firewallResult.rehydratedDisputePack,
-      sanitizedData: firewallResult.sanitizedDisputePack,
-      source: aiResponse.source,
-      latencyMs: aiResponse.latencyMs,
-    };
-  } catch {
+  let status: ReceiptEvent['status'] = 'CANCELLED';
+  let result: DispatchResult<DisputePack> = { success: false, error: 'The route became unavailable. Check your settings or connection and approve again.' };
+  let source: DispatchResult<DisputePack>['source'];
+  let latencyMs: number | undefined;
+  if (canDispatch()) {
+    const start = performance.now();
     try {
-      await receiptLedger.appendEvent({ ...receipt, eventType: 'OUTCOME', status: 'ERROR', errorMessage: 'Sample inference did not complete.' });
-    } catch {
-      return { success: false, error: 'The browser could not record the outcome. Check Privacy Receipts before retrying.' };
+      let data: unknown;
+      if (live) {
+        const { inferLiveJudge } = await import('../firebase/liveJudgeAdapter');
+        if (!canDispatch()) throw new Error('LIVE_JUDGE_CANCELLED');
+        const response = await inferLiveJudge(canonicalRequest, canDispatch);
+        source = response.observedCloud ? 'IN_CLOUD' : 'UNKNOWN';
+        latencyMs = Math.round(performance.now() - start);
+        const issues = response.observedCloud ? validateLiveJudgeOutput(response.text) : null;
+        if (issues) data = buildLiveJudgeDisputePack(issues, Object.keys(transformationMap.placeholders));
+      } else {
+        const response = await firebaseAIAdapter.executeInference<DisputePack>({
+          featureName: 'dispute_pack_reasoning',
+          mode: preparedRequest.requestedMode,
+          prompt: canonicalRequest,
+          modelName: preparedRequest.targetCloudModel,
+          mockGenerator,
+        });
+        ({ data, source, latencyMs } = response);
+      }
+
+      if (!live || canDispatch()) {
+        const firewall = validateAndRehydrateDisputePack(data, transformationMap);
+        status = firewall.passed ? 'SUCCESS' : 'FIREWALL_BLOCKED';
+        result = firewall.passed
+          ? { success: true, rehydratedData: firewall.rehydratedDisputePack, sanitizedData: firewall.sanitizedDisputePack, source, latencyMs, executionKind }
+          : { success: false, error: firewall.blockReason, firewallViolations: firewall.violations };
+      }
+    } catch (error) {
+      if (!(error instanceof Error && error.message === 'LIVE_JUDGE_CANCELLED')) {
+        status = 'ERROR';
+        result = { success: false, error: live ? 'Live Firebase analysis did not complete. Check your connection and try approving again.' : 'The sample analysis did not complete. Try approving again.' };
+      }
     }
-    return { success: false, error: 'The sample analysis did not complete. Try approving again.' };
   }
+
+  try {
+    await receiptLedger.appendEvent({ ...receipt, eventType: 'OUTCOME', actualSource: source, status, errorMessage: result.error });
+  } catch {
+    return { success: false, error: 'The browser could not record the outcome. Check Privacy Receipts before retrying.' };
+  }
+  if (live && latencyMs !== undefined) {
+    blackBoxStore.recordEvent({
+      executionKind,
+      featureName: 'dispute_pack_reasoning',
+      requestedMode: preparedRequest.requestedMode,
+      observedSource: source ?? 'UNKNOWN',
+      latencyMs,
+      inputTokens: 0,
+      outputTokens: 0,
+      success: result.success,
+      errorCategory: result.success ? undefined : status,
+    });
+  }
+  return result;
 }

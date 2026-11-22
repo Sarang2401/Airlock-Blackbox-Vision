@@ -2,7 +2,7 @@
  * Canonical PreparedRequest Builder.
  * Prepares the immutable, exact payload that will leave the device.
  */
-import { PreparedRequest, CaseSession, InferenceMode } from '../contracts/types';
+import { PreparedRequest, CaseSession, DocumentKind, InferenceMode } from '../contracts/types';
 import { canonicalJsonStringify, sha256Hex } from '../contracts/canonical';
 
 export interface PreparedRequestWithHash {
@@ -13,11 +13,12 @@ export interface PreparedRequestWithHash {
 
 export async function buildPreparedDisputeRequest(params: {
   caseSession: CaseSession;
-  sanitizedDocs: Array<{ id: string; kind: any; sanitizedText: string }>;
+  sanitizedDocs: ReadonlyArray<{ id: string; kind: DocumentKind; sanitizedText: string }>;
   targetCloudModel: string;
   promptInstructions: string;
   jurisdiction?: 'IN' | 'US' | 'GENERIC';
   currency?: string;
+  execution?: PreparedRequest['execution'];
 }): Promise<PreparedRequestWithHash> {
   const {
     caseSession,
@@ -26,9 +27,10 @@ export async function buildPreparedDisputeRequest(params: {
     promptInstructions,
     jurisdiction = 'IN',
     currency = 'INR',
+    execution,
   } = params;
 
-  const allowedPlaceholders = Object.keys(caseSession.transformationMap.placeholders);
+  const allowedPlaceholders = execution ? [] : Object.keys(caseSession.transformationMap.placeholders);
 
   const request: PreparedRequest = {
     version: '1.0',
@@ -47,6 +49,7 @@ export async function buildPreparedDisputeRequest(params: {
     currency,
     promptInstructions,
     allowedPlaceholders,
+    ...(execution ? { execution } : {}),
   };
 
   const canonicalJson = canonicalJsonStringify(request);

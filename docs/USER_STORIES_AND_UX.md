@@ -8,8 +8,8 @@ EscrowHealth helps people make sense of medical bills and insurance decisions wh
 | --- | --- | --- |
 | Patient or caregiver | As someone trying to understand a bill or denial, I want to see which details the app protects before I approve an analysis. | Start with fictional paperwork. Compare the original and protected copies. See whether a request can be approved and confirm the exact fingerprint before analysis. Review findings and a draft appeal without losing track of which details were restored locally. |
 | Patient using an external assistant | As someone drafting a message elsewhere, I want to redact detected details and restore placeholders here. | Safe Paste runs in the browser, lets me review the result before copying, offers manual masking, asks for confirmation before copying, records the clipboard action, and restores recognized placeholders from the active in-memory map. |
-| Hackathon judge | As a reviewer, I want to see the consent gate, route behavior, and verification I can reproduce. | The dashboard identifies simulation. Run a fictional case, inspect its prepared JSON and hash, approve it, verify the two receipt events, and rerun the 105-document benchmark. Switch to Offline or pause the route and confirm approval is unavailable. Refresh the protected preview and confirm again after recovering. |
-| Hybrid AI builder | As an engineer, I want to understand route choice, latency, and fallback signals so I can evaluate a routing policy. | Black Box identifies simulated metrics, presents counts and percentiles, and exposes the recommended policy JSON. Empty metrics clearly describe how to produce events. |
+| Hackathon judge | As a reviewer, I want to see the consent gate, route behavior, and verification I can reproduce. | The dashboard identifies live and simulated paths. Run a fictional case, inspect its prepared JSON and hash, approve it, verify the two receipt events, and rerun the 105-document benchmark. Switch to Offline or pause the route and confirm approval is unavailable. Refresh the protected preview and confirm again after recovering. |
+| Hybrid AI builder | As an engineer, I want to understand route choice, latency, and fallback signals so I can evaluate a routing policy. | Black Box separates live and simulated metrics, presents counts and percentiles, and exposes a policy preview. Empty metrics describe how to produce events. |
 | Privacy auditor | As a reviewer, I want to check that the approval and outcome refer to the same request. | View receipt status and hashes, verify the chain locally, and export it. Receipt evidence establishes what the app logged. |
 
 ## Journey and screen order
@@ -19,7 +19,7 @@ EscrowHealth helps people make sense of medical bills and insurance decisions wh
 3. **Review the draft.** Approve the exact prepared request when the selected mode permits it. The sample analysis passes through the receipt and firewall path before the draft appears.
 4. **Verify.** Use Privacy Receipts for the chain, Black Box for route events, and Benchmark for the labeled corpus. Fixture-assisted recall is reported separately from model accuracy. Safe Paste is a separate workflow for text copied to external assistants.
 
-The current decoder uses curated samples and deterministic local detection. Its analysis, Nano selection, and route metrics are simulations. Production inference and real-document intake are future scope.
+The decoder uses curated samples and deterministic local detection. A configured hosted Judge Mode can send reviewed excerpts from the India sample to Firebase after approval. The US sample and Nano scenario use simulation. Black Box displays live and simulated metrics separately. Real-document intake is future scope.
 
 ## Brand and layout
 

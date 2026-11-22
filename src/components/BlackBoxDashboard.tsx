@@ -4,11 +4,15 @@ import { blackBoxStore, generateRecommendedPolicy } from '../../packages/black-b
 import { PageHeading } from './PageHeading';
 import { downloadText } from './downloadText';
 import { useToast } from './ToastProvider';
+import { liveJudgeConfigured } from '../firebase/config';
+import type { ExecutionKind } from '../contracts/types';
 
 export function BlackBoxDashboard() {
   const notify = useToast();
-  const [summary, setSummary] = useState(() => blackBoxStore.computeSummary());
+  const [executionKind, setExecutionKind] = useState<ExecutionKind>(() => liveJudgeConfigured ? 'LIVE' : 'SIMULATED');
+  const [summary, setSummary] = useState(() => blackBoxStore.computeSummary(executionKind));
   const [policyJson, setPolicyJson] = useState<string | null>(null);
+  const live = executionKind === 'LIVE';
   const routePercent = (count: number) => summary.totalCalls ? Math.round(count / summary.totalCalls * 100) : 0;
   const stats = [
     { label: 'Total inferences', value: summary.totalCalls },
@@ -26,10 +30,16 @@ export function BlackBoxDashboard() {
 
   return (
     <div className="secondary-page">
-      <PageHeading title="Black Box" description="Inspect route and timing metadata from the fictional walkthrough. Live route evidence has not been collected." actions={
+      <PageHeading title="Black Box" description={live ? 'Observed Firebase routes and end-to-end request timing for approved fictional cases.' : 'Inspect simulated route and timing metadata from the fictional walkthrough.'} actions={
         <>
+          {liveJudgeConfigured && <select className="field" aria-label="Telemetry source" value={executionKind} onChange={(event) => {
+            const kind = event.target.value === 'LIVE' ? 'LIVE' : 'SIMULATED';
+            setExecutionKind(kind);
+            setSummary(blackBoxStore.computeSummary(kind));
+            setPolicyJson(null);
+          }}><option value="LIVE">Live Firebase</option><option value="SIMULATED">Simulation</option></select>}
           <button className="button button-secondary" type="button" onClick={() => {
-            setSummary(blackBoxStore.computeSummary());
+            setSummary(blackBoxStore.computeSummary(executionKind));
             setPolicyJson(null);
             notify('Telemetry refreshed.');
           }}><RefreshCw size={16} aria-hidden="true" /> Refresh metrics</button>
@@ -62,7 +72,7 @@ export function BlackBoxDashboard() {
           <h2 className="section-title">Fallback reasons</h2>
           {fallbacks.length > 0
             ? <dl className="data-list">{fallbacks.map(([reason, count]) => <div key={reason}><dt><code>{reason}</code></dt><dd>{count}</dd></div>)}</dl>
-            : <p className="muted">Sample analyses use a simulated cloud route. Fallback telemetry appears when a fallback is recorded.</p>}
+            : <p className="muted">{live ? 'This live Judge Mode case uses only the cloud route.' : 'Fallback telemetry appears when a simulated fallback is recorded.'}</p>}
         </section>
       </div>
       {policyJson && (

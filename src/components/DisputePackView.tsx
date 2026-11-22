@@ -1,5 +1,5 @@
 import { Check, Clipboard, Download } from 'lucide-react';
-import { DisputePack } from '../contracts/types';
+import { DisputePack, ExecutionKind } from '../contracts/types';
 import { downloadText } from './downloadText';
 import { useToast } from './ToastProvider';
 
@@ -7,6 +7,7 @@ interface DisputePackViewProps {
   disputePack: DisputePack;
   source?: 'ON_DEVICE' | 'IN_CLOUD' | 'UNKNOWN';
   latencyMs?: number;
+  executionKind?: ExecutionKind;
 }
 
 const routeLabels = { ON_DEVICE: 'On-device route', IN_CLOUD: 'Cloud route', UNKNOWN: 'Unknown route' };
@@ -18,7 +19,7 @@ const terms = {
   ARITHMETIC_ERROR: { name: 'Arithmetic error', explanation: 'The amounts or quantities may not add up. Compare each rate and quantity with the total.' },
 };
 
-export function DisputePackView({ disputePack, source = 'UNKNOWN', latencyMs }: DisputePackViewProps) {
+export function DisputePackView({ disputePack, source = 'UNKNOWN', latencyMs, executionKind }: DisputePackViewProps) {
   const notify = useToast();
 
   async function copyAppeal() {
@@ -37,7 +38,7 @@ export function DisputePackView({ disputePack, source = 'UNKNOWN', latencyMs }: 
 
   return (
     <div className="secondary-page">
-      <p className="status-banner animate-receipt-stamp" role="status"><Check size={18} aria-hidden="true" /> Sample analysis complete · Simulated {routeLabels[source].toLowerCase()}{latencyMs === undefined ? '' : ` · ${latencyMs} ms`}</p>
+      <p className="status-banner animate-receipt-stamp" role="status"><Check size={18} aria-hidden="true" /> Sample analysis complete · {executionKind === 'LIVE' ? 'Live Firebase' : 'Simulated'} {routeLabels[source].toLowerCase()}{latencyMs === undefined ? '' : ` · ${latencyMs} ms`}</p>
       <section className="surface data-card">
         <h2 className="section-title" tabIndex={-1}>Sample dispute pack</h2>
         <p className="muted">{disputePack.summary}</p>
@@ -45,7 +46,8 @@ export function DisputePackView({ disputePack, source = 'UNKNOWN', latencyMs }: 
       </section>
       <section className="surface data-card">
         <h2 className="section-title">Billing questions to check</h2>
-        <ul className="finding-list">
+        {disputePack.findings.length === 0 && <p className="muted">No billing question was flagged in the reviewed excerpts.</p>}
+        {disputePack.findings.length > 0 && <ul className="finding-list">
           {disputePack.findings.map((finding) => (
             <li key={finding.findingId} className="finding">
               <h3 className="font-bold">{terms[finding.type].name}</h3>
@@ -59,7 +61,7 @@ export function DisputePackView({ disputePack, source = 'UNKNOWN', latencyMs }: 
               </details>
             </li>
           ))}
-        </ul>
+        </ul>}
       </section>
       {disputePack.policyClauseAnalysis.length > 0 && (
         <section className="surface data-card">

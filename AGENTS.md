@@ -8,7 +8,7 @@ EscrowHealth helps patients and caregivers understand medical bills and insuranc
 2. **Fail closed by capability.** Tier A requires verified on-device extraction and a passing residual scan. Tier B allows curated synthetic cases using verified labels in Judge Mode. Unverified narratives stay local. Tier C permits local deterministic review and guidance with zero cloud dispatch.
 3. **Record consent before dispatch.** Show the protected copy and exact prepared request, hash the canonical request with SHA-256, and obtain approval for that hash and revision. Append an `INTENT` event before a cloud flight, and append an `OUTCOME` event for success, failure, or a firewall block.
 4. **Validate responses in full.** Buffer responses in `src/airlock/firewall.ts`. Block unknown or cross-case tokens and hostile markup. Restore protected details on-device using the active in-memory transformation map.
-5. **Describe runtime behavior accurately.** The current Bill Decoder accepts curated samples and performs deterministic local detection. The adapter simulates inference and route timing. Preserve this distinction in labels, metrics, and demos.
+5. **Describe runtime behavior accurately.** The Bill Decoder accepts curated samples and performs deterministic local detection. The opt-in hosted Judge Mode sends only fixed excerpts from the India sample. Other paths simulate inference and timing. Keep live and simulated evidence clearly labeled.
 
 ## Experience and brand
 

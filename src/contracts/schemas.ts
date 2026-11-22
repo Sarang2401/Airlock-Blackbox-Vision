@@ -78,6 +78,7 @@ export const PreparedRequestSchema = z.object({
   currency: z.string(),
   promptInstructions: z.string(),
   allowedPlaceholders: z.array(z.string()),
+  execution: z.object({ kind: z.literal('FIREBASE_JUDGE_V1'), policyVersion: z.string().min(1).max(80) }).strict().optional(),
 }).strict();
 
 export const BillingAuditFindingSchema = z.object({
@@ -135,6 +136,7 @@ export const ReceiptEventSchema = z.object({
   canonicalRequestHash: z.string().optional(),
   sanitizedPayloadLength: z.number().optional(),
   modelIdentifier: z.string().optional(),
+  executionKind: z.enum(['LIVE', 'SIMULATED']).optional(),
   status: z.enum(['PENDING', 'SUCCESS', 'FIREWALL_BLOCKED', 'ERROR', 'CANCELLED']),
   errorMessage: z.string().optional(),
 }).strict();

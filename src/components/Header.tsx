@@ -3,6 +3,7 @@ import { Activity, ChevronDown, Cpu, FileText, FlaskConical, LockKeyhole, Menu, 
 import { CapabilityTier } from '../contracts/types';
 import { useTheme } from '../context/ThemeContext';
 import { EscrowHealthLogo } from './brand/EscrowHealthLogo';
+import { liveJudgeConfigured } from '../firebase/config';
 
 const navigation = [
   { title: 'Workspace', items: [
@@ -105,14 +106,16 @@ export function Header({ activeTab, onNavigate, tier, onTierChange, cloudEnabled
           <details ref={runtimeMenu} className="runtime-menu">
             <summary className="button button-secondary runtime-trigger" title="Preview settings">
               <span className="runtime-dot" aria-hidden="true" />
-              <span className="runtime-label">{!online || tier === 'TIER_C_OFFLINE' ? 'Offline' : 'Simulation'}</span>
+              <span className="runtime-label">{!online || tier === 'TIER_C_OFFLINE' ? 'Offline' : liveJudgeConfigured && tier === 'TIER_B_NO_NANO' ? 'Judge mode' : 'Simulation'}</span>
               <ChevronDown className="runtime-chevron" size={14} aria-hidden="true" />
               <SlidersHorizontal className="runtime-sliders" size={17} aria-hidden="true" />
               <span className="sr-only">settings</span>
             </summary>
             <div className="runtime-panel surface">
               <p className="runtime-title"><Cpu size={16} aria-hidden="true" /> Preview settings</p>
-              <p className="muted">These controls change the fictional walkthrough. The local model and cloud route are simulated.</p>
+              <p className="muted">{liveJudgeConfigured
+                ? 'Judge Mode can send protected excerpts from the India sample to Firebase after approval. The US sample and Nano scenario are simulated.'
+                : 'These controls change the fictional walkthrough. The local model and cloud route are simulated.'}</p>
               <label htmlFor="capability-tier">Preview scenario</label>
               <select id="capability-tier" className="field" value={tier} onChange={(event) => onTierChange(event.target.value as CapabilityTier)}>
                 <option value="TIER_B_NO_NANO">Judge mode</option>
@@ -120,7 +123,7 @@ export function Header({ activeTab, onNavigate, tier, onTierChange, cloudEnabled
                 <option value="TIER_C_OFFLINE">Offline preview</option>
               </select>
               <button className="button button-secondary" type="button" onClick={onCloudToggle} aria-pressed={cloudEnabled}>
-                Simulated cloud route {cloudEnabled ? 'enabled' : 'paused'}
+                {liveJudgeConfigured ? 'Analysis route' : 'Simulated cloud route'} {cloudEnabled ? 'enabled' : 'paused'}
               </button>
             </div>
           </details>

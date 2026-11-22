@@ -15,6 +15,7 @@ export const BUNDLED_DEFAULT_POLICY: RemoteConfigPolicy = {
   minSanitizationTier: 'STRICT',
   allowedCloudModels: [
     'gemini-2.5-flash',
+    'gemini-3.5-flash-lite',
     'gemini-2.5-pro',
     'gemini-1.5-pro',
     'gemini-1.5-flash',

@@ -5,6 +5,7 @@ import { CaseSession } from '../contracts/types';
 import { reconcileSpans } from '../airlock/spanReconciliation';
 import { Spinner } from './PendingPanel';
 import { useToast } from './ToastProvider';
+import { documentNames } from './documentNames';
 
 interface SplitScreenReviewProps {
   session: CaseSession;
@@ -22,6 +23,7 @@ export function SplitScreenReview({ session, prepared, approvalBlock, onApprove,
   const notify = useToast();
   const { placeholders, reversePlaceholders } = session.transformationMap;
   const protectedCount = Object.keys(placeholders).length;
+  const live = Boolean(prepared.request.execution);
 
   async function copy(value: string, label: string) {
     try {
@@ -38,17 +40,17 @@ export function SplitScreenReview({ session, prepared, approvalBlock, onApprove,
         <span className="feature-icon animate-token-reveal"><ShieldCheck size={21} aria-hidden="true" /></span>
         <div>
           <h2 id="privacy-review-title" tabIndex={-1}>Review what would be shared</h2>
-          <p className="muted">Highlighted details have been replaced or shifted. Compare both copies before approving.</p>
+          <p className="muted">{live ? 'Only the excerpts below are included in the Firebase request. The original fictional documents stay in this browser.' : 'Highlighted details have been replaced or shifted. Compare both copies before approving.'}</p>
         </div>
       </div>
       <div className="document-diff">
         <section className="diff-pane diff-pane-protected" key={prepared.requestHash}>
-          <h3><ShieldCheck size={17} aria-hidden="true" /> Protected copy</h3>
+          <h3><ShieldCheck size={17} aria-hidden="true" /> {live ? 'Protected excerpts' : 'Protected copy'}</h3>
           <div className="protected-text">
             <pre className="document-text" tabIndex={0} aria-label="Protected document text">{prepared.request.sanitizedDocuments.map((doc, index) => (
               <Fragment key={doc.id}>
                 {index > 0 && '\n\n'}
-                {`Document ${index + 1}\n\n`}
+                {`${documentNames[doc.kind]}\n\n`}
                 {doc.sanitizedText.split(/(\[[^\]\r\n]+\])/g).map((part, partIndex) =>
                   Object.hasOwn(placeholders, part) ? <mark key={partIndex}>{part}</mark> : part
                 )}
@@ -67,19 +69,19 @@ export function SplitScreenReview({ session, prepared, approvalBlock, onApprove,
               cursor = end;
               return <Fragment key={start}>{prefix}<mark>{doc.normalizedText.slice(start, end)}</mark></Fragment>;
             });
-            return <Fragment key={doc.id}>{index > 0 && '\n\n'}{`Document ${index + 1}\n\n`}{parts}{doc.normalizedText.slice(cursor)}</Fragment>;
+            return <Fragment key={doc.id}>{index > 0 && '\n\n'}{`${documentNames[doc.kind]}\n\n`}{parts}{doc.normalizedText.slice(cursor)}</Fragment>;
           })}</pre>
         </section>
       </div>
-      <p className="redaction-summary muted">{protectedCount} distinct details protected in this sample.</p>
+      <p className="redaction-summary muted">{live ? `${prepared.request.sanitizedDocuments.length} excerpts. Original identifiers and dates stay on this device.` : `${protectedCount} distinct details protected in this sample.`}</p>
       <details className="review-details section-inset">
         <summary><ChevronDown size={16} aria-hidden="true" /> Request details</summary>
-        <fieldset disabled={busy || completed} className="review-preferences">
+        {!live && <fieldset disabled={busy || completed} className="review-preferences">
           <legend className="field-label">Fictional case details</legend>
           <label><input type="checkbox" checked={session.discloseHospital} onChange={(event) => onProfileChange(event.target.checked, session.expandDiagnosis)} /> Include hospital name</label>
           <label><input type="checkbox" checked={session.expandDiagnosis} onChange={(event) => onProfileChange(session.discloseHospital, event.target.checked)} /> Keep specific diagnosis</label>
-        </fieldset>
-        {completed && <p className="muted">Run another local scan to change which optional details are included.</p>}
+        </fieldset>}
+        {!live && completed && <p className="muted">Run another local scan to change which optional details are included.</p>}
         <div className="hash-row">
           <div><p className="field-label">Request fingerprint (SHA-256)</p><code>{prepared.requestHash}</code></div>
           <button type="button" className="button button-secondary" onClick={() => void copy(prepared.requestHash, 'Fingerprint')}>
@@ -94,7 +96,7 @@ export function SplitScreenReview({ session, prepared, approvalBlock, onApprove,
       <div className="review-footer section-inset" data-action={!completed && (!approvalBlock || Boolean(onRefresh))}>
         <p className="review-status" role="status">
           {completed ? <Check size={18} aria-hidden="true" /> : <LockKeyhole size={18} aria-hidden="true" />}
-          <span>{completed ? 'Sample analysis complete. A receipt is available.' : approvalBlock ?? 'Ready for your approval. This demo runs locally.'}</span>
+          <span>{completed ? 'Sample analysis complete. A receipt is available.' : approvalBlock ?? (live ? 'With approval, Firebase Gemini will examine these fictional excerpts.' : 'Ready for your approval. This demo runs locally.')}</span>
         </p>
         {!completed && onRefresh && (
           <button type="button" className="button button-primary" disabled={busy} onClick={onRefresh}>

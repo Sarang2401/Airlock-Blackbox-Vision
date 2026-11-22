@@ -3,7 +3,7 @@
  * UI-independent, zero raw content, records inference metadata only.
  */
 import { BlackBoxEvent, RouteMixSummary } from './types';
-import { InferenceMode, InferenceSource } from '../../src/contracts/types';
+import { ExecutionKind, InferenceMode, InferenceSource } from '../../src/contracts/types';
 
 class BlackBoxStore {
   private events: BlackBoxEvent[] = [];
@@ -44,6 +44,7 @@ class BlackBoxStore {
     outputTokens: number;
     success: boolean;
     errorCategory?: string;
+    executionKind?: ExecutionKind;
     deviceClass?: 'DESKTOP_SUPPORTED' | 'MOBILE_WEB' | 'NO_NANO_BROWSER';
     fallbackReason?: 'NONE' | 'DEVICE_UNSUPPORTED' | 'MODEL_NOT_READY' | 'POLICY_OVERRIDE' | 'OFFLINE';
   }): BlackBoxEvent {
@@ -60,6 +61,7 @@ class BlackBoxStore {
       deviceClass: params.deviceClass || 'DESKTOP_SUPPORTED',
       fallbackReason: params.fallbackReason || 'NONE',
       timestampIso: new Date().toISOString(),
+      executionKind: params.executionKind ?? 'SIMULATED',
     };
 
     this.events.push(event);
@@ -71,8 +73,11 @@ class BlackBoxStore {
     return [...this.events];
   }
 
-  public computeSummary(): RouteMixSummary {
-    const total = this.events.length;
+  public computeSummary(executionKind?: ExecutionKind): RouteMixSummary {
+    const events = executionKind
+      ? this.events.filter((event) => (event.executionKind ?? 'SIMULATED') === executionKind)
+      : this.events;
+    const total = events.length;
     if (total === 0) {
       return {
         totalCalls: 0,
@@ -88,20 +93,20 @@ class BlackBoxStore {
       };
     }
 
-    const onDevice = this.events.filter((e) => e.observedSource === 'ON_DEVICE').length;
-    const inCloud = this.events.filter((e) => e.observedSource === 'IN_CLOUD').length;
+    const onDevice = events.filter((e) => e.observedSource === 'ON_DEVICE').length;
+    const inCloud = events.filter((e) => e.observedSource === 'IN_CLOUD').length;
     const unknown = total - onDevice - inCloud;
 
     // Cloud calls avoided: count completed on-device operations for tasks that could have used cloud
     const cloudCallsAvoided = onDevice;
 
     // Latencies
-    const allLatencies = this.events.map((e) => e.latencyMs).sort((a, b) => a - b);
-    const onDeviceLatencies = this.events
+    const allLatencies = events.map((e) => e.latencyMs).sort((a, b) => a - b);
+    const onDeviceLatencies = events
       .filter((e) => e.observedSource === 'ON_DEVICE')
       .map((e) => e.latencyMs)
       .sort((a, b) => a - b);
-    const inCloudLatencies = this.events
+    const inCloudLatencies = events
       .filter((e) => e.observedSource === 'IN_CLOUD')
       .map((e) => e.latencyMs)
       .sort((a, b) => a - b);
@@ -113,7 +118,7 @@ class BlackBoxStore {
     };
 
     const fallbackBreakdown: Record<string, number> = {};
-    for (const e of this.events) {
+    for (const e of events) {
       if (e.fallbackReason && e.fallbackReason !== 'NONE') {
         fallbackBreakdown[e.fallbackReason] = (fallbackBreakdown[e.fallbackReason] || 0) + 1;
       }

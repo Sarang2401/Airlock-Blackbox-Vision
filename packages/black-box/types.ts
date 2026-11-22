@@ -2,7 +2,7 @@
  * Black Box Observability Package Types.
  * Zero document content or sensitive parameters in telemetry.
  */
-import { InferenceMode, InferenceSource } from '../../src/contracts/types';
+import { ExecutionKind, InferenceMode, InferenceSource } from '../../src/contracts/types';
 
 export interface BlackBoxEvent {
   eventId: string;
@@ -17,6 +17,7 @@ export interface BlackBoxEvent {
   deviceClass: 'DESKTOP_SUPPORTED' | 'MOBILE_WEB' | 'NO_NANO_BROWSER';
   fallbackReason?: 'NONE' | 'DEVICE_UNSUPPORTED' | 'MODEL_NOT_READY' | 'POLICY_OVERRIDE' | 'OFFLINE';
   timestampIso: string;
+  executionKind?: ExecutionKind;
 }
 
 export interface RouteMixSummary {

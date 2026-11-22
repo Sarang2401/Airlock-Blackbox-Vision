@@ -15,7 +15,7 @@ Read [AGENTS.md](AGENTS.md) for the repository rules and [the UX stories](docs/U
 
 ## Current demo
 
-Bill Decoder starts in Judge Mode with curated Indian and US cases. It scans locally, shows the protected copy and canonical request, and runs the sample response through the guarded dispatcher and output firewall after approval. `src/firebase/aiAdapter.ts` uses mock inference. The draft term explanations are local reference copy. Use the profile switch to inspect Offline and simulated Nano eligibility, and the route toggle to pause approval.
+Bill Decoder starts in Judge Mode with curated Indian and US cases. It scans locally and shows the protected copy and canonical request before approval. The optional hosted Judge Mode build sends fixed India sample excerpts through `src/dispatch/dispatcher.ts` to `src/firebase/liveJudgeAdapter.ts` with App Check. The output firewall validates the returned issue identifiers before local draft assembly and restoration. Other paths use `src/firebase/aiAdapter.ts` for simulation. Use the profile switch to inspect Offline and simulated Nano eligibility, and the route toggle to pause approval.
 
 Safe Paste scans user-entered text locally and keeps the replacement map in memory while its workspace is open. It copies only on explicit action and logs clipboard metadata. Benchmarks use a labeled fictional corpus and a simulated recall pass.
 

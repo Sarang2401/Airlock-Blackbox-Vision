@@ -7,10 +7,10 @@ EscrowHealth helps patients and caregivers make sense of medical bills and insur
 - **Bill Decoder** scans curated fictional cases locally. Review the protected copy alongside the original, inspect the canonical request and hash, and approve a sample analysis and draft appeal.
 - **Safe Paste** detects and replaces recognized identifiers in text inside the browser. Review the result before copying it to another assistant, then restore recognized placeholders locally.
 - **Privacy Receipts** verifies the local SHA-256 chain for approvals, outcomes, and clipboard exports.
-- **Black Box** shows simulated route and latency telemetry and generates a suggested Remote Config policy.
+- **Black Box** shows live and simulated route and latency telemetry in separate views and generates a suggested Remote Config policy.
 - **Airlock Benchmark** evaluates 105 labeled fictional documents using a simulated recall pass.
 
-The Firebase adapter returns simulated inference. No model request is sent by the sample analysis. The decoder uses the two curated cases. The production build caches its application shell after an online visit so local review can continue on an offline reload. Production model execution and real-document intake are outside the current demo.
+The default build uses simulated inference for the two curated cases. An opt-in hosted Judge Mode build can send three fixed excerpts from the India sample to Gemini 3.5 Flash-Lite after explicit approval and a recorded intent. Gemini returns issue identifiers. Airlock checks the response, then builds and restores the fictional appeal in the browser. Real-document intake is outside the current demo.
 
 ## Run locally
 
@@ -20,6 +20,8 @@ npm run dev
 ```
 
 Open [the local dashboard](http://localhost:3000). Start with the Indian hospital bill or US emergency room bill. Run the local privacy scan, open **Request details** to see the exact payload, and approve the sample analysis. Visit **Privacy Receipts** to verify the intent and outcome. Use **Preview settings** to check how Offline and a paused cloud route affect approval.
+
+For a hosted live Judge Mode build, set `VITE_ENABLE_LIVE_JUDGE=true` and populate the Firebase Web app and reCAPTCHA Enterprise site key fields from `.env.example`. Use a Hosting hostname allowed by the key and verify App Check enforcement for Firebase AI Logic before deploying. The production build caches its application shell after an online visit so local review can continue on an offline reload.
 
 ```sh
 npm run build
