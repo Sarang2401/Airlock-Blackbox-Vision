@@ -1,3 +1,5 @@
+import { EntityType } from '../contracts/types';
+
 /**
  * Curated Synthetic Case Samples for Judges and Demonstration.
  * 
@@ -10,6 +12,7 @@ export interface SyntheticSampleCase {
   description: string;
   jurisdiction: 'IN' | 'US';
   currency: string;
+  privacyLabels: Partial<Record<EntityType, readonly string[]>>;
   documents: Array<{
     kind: 'BILL' | 'DENIAL_LETTER' | 'POLICY' | 'DISCHARGE_SUMMARY';
     displayName: string;
@@ -25,6 +28,21 @@ export const SYNTHETIC_SAMPLE_CASES: SyntheticSampleCase[] = [
     description: 'Patient admitted for acute cardiac care. Insurer rejected claim under Clause 4.2 (waiting period), and hospital bill contains duplicate ICU monitoring fees and package overages.',
     jurisdiction: 'IN',
     currency: 'INR',
+    privacyLabels: {
+      PERSON_NAME: ['Ramesh Chandra Verma', 'S. K. Kulkarni'],
+      HOSPITAL_NAME: ['Apex Multi-Speciality Hospital'],
+      STREET_ADDRESS: ['Mumbai 400051', 'Bengaluru - 560034'],
+      GOVT_ID: ['4829 1049 2814'],
+      PAN_NUMBER: ['ABCPV1234K'],
+      PHONE_NUMBER: ['+91 98201 44512'],
+      EMAIL_ADDRESS: ['ramesh.verma72@example.com'],
+      POLICY_NUMBER: ['POL-IND-44829104'],
+      CLAIM_NUMBER: ['CLM-2026-993812'],
+      GENERIC_IDENTIFIER: ['SHI-88492019', 'Suraksha Health Insurance'],
+      BANK_ACCOUNT: ['981203491823'],
+      IFSC_CODE: ['HDFC0001234'],
+      DIAGNOSIS: ['Acute Subendocardial Myocardial Infarction'],
+    },
     expectedIssues: [
       'Room rent capped at 1% of Sum Insured, creating proportionate deduction',
       'Denial under Clause 4.2 invalid: condition first diagnosed 3 years post-inception',
@@ -104,6 +122,18 @@ Total Hospital Bill: Rs. 2,45,000`,
     description: 'Emergency department visit in Austin, TX. Routine venipuncture billed separately from blood panel, and out-of-network assistant surgeon fee disputed under No Surprises Act.',
     jurisdiction: 'US',
     currency: 'USD',
+    privacyLabels: {
+      PERSON_NAME: ['Jonathan Edward Miller'],
+      HOSPITAL_NAME: ['Austin Regional Medical Center'],
+      STREET_ADDRESS: ['1400 Health Parkway, Austin, TX 78701'],
+      GOVT_ID: ['452-88-9102'],
+      PHONE_NUMBER: ['(512) 555-0199'],
+      EMAIL_ADDRESS: ['jmiller82@example.com'],
+      POLICY_NUMBER: ['AET-9948120'],
+      CLAIM_NUMBER: ['CLM-US-7749102'],
+      GENERIC_IDENTIFIER: ['MRN-991820', 'Aetna Healthcare'],
+      BANK_ACCOUNT: ['882910492'],
+    },
     expectedIssues: [
       'Unbundled routine venipuncture (CPT 36415) from Comprehensive Metabolic Panel',
       'Balance billing for assistant surgeon at in-network facility violates No Surprises Act',

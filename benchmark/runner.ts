@@ -4,7 +4,6 @@
  * Computes:
  * - Entity Precision & Recall against ground truth labels.
  * - End-to-end Privacy Leak Rate (fraction of documents with >= 1 surviving prohibited direct identifier).
- * - True-issue Utility Agreement.
  * - Cloud Eligibility & Block Rate.
  */
 import { generateBenchmarkCorpus, BenchmarkDocument } from './syntheticCorpus';
@@ -26,7 +25,6 @@ export interface BenchmarkMetrics {
   leakRate: number;
   eligibleForCloudCount: number;
   eligiblePercentage: number;
-  utilityAgreementRate: number;
 }
 
 export function evaluateAirlockBench(corpus: BenchmarkDocument[] = generateBenchmarkCorpus()): BenchmarkMetrics {
@@ -112,7 +110,6 @@ export function evaluateAirlockBench(corpus: BenchmarkDocument[] = generateBench
   const recall = totalGroundTruth > 0 ? truePositives / totalGroundTruth : 1.0;
   const leakRate = corpus.length > 0 ? residualLeaks / corpus.length : 0.0;
   const eligiblePercentage = corpus.length > 0 ? (eligibleCount / corpus.length) * 100 : 100;
-  const utilityAgreementRate = 0.94; // 94% true-issue fidelity against expected answer keys
 
   return {
     totalDocuments: corpus.length,
@@ -127,6 +124,5 @@ export function evaluateAirlockBench(corpus: BenchmarkDocument[] = generateBench
     leakRate,
     eligibleForCloudCount: eligibleCount,
     eligiblePercentage,
-    utilityAgreementRate,
   };
 }

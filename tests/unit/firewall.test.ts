@@ -67,6 +67,18 @@ describe('Output Firewall & Local Rehydration', () => {
     expect(result.violations[0]).toContain('Cross-case or unauthorized token detected');
   });
 
+  it('rejects unused placeholders and date references', () => {
+    const response = {
+      summary: 'Unassigned reference [PATIENT_T7M9_2] and [DATE_DREF_2:2026-11-18]',
+      findings: [],
+      policyClauseAnalysis: [],
+      draftAppealLetter: 'Appeal',
+      supportingChecklist: [],
+      disclaimerNotice: 'Disclaimer',
+    };
+    expect(validateAndRehydrateDisputePack(response, mockMap).violations).toHaveLength(2);
+  });
+
   it('blocks response with malicious XSS markup', () => {
     const xssResponse = {
       summary: 'Safe summary <script>alert("hacked")</script>',

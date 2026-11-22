@@ -2,7 +2,7 @@
   "name": "airlock-blackbox-vision",
   "version": "1.0.0",
   "private": true,
-  "description": "Airlock + Black Box: Privacy Gateway & Hybrid-Inference Observability for Firebase AI Logic",
+  "description": "EscrowHealth: private bill review, privacy receipts, and hybrid-inference observability",
   "type": "module",
   "scripts": {
     "dev": "vite",

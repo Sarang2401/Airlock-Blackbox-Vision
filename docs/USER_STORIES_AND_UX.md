@@ -1,76 +1,57 @@
-# Airlock + Black Box — User Stories & UX Journey Map
+# EscrowHealth user stories and experience
 
-## 1. Product Vision & Emotional Arc
+EscrowHealth helps people make sense of medical bills and insurance decisions while keeping the original paperwork in their browser. Airlock prepares the sanitized request. Black Box shows how the inference route behaved.
 
-Healthcare billing and insurance disputes are emotionally taxing. When an insurer repudiates a cashless claim or a hospital issues an inflated multi-lakh bill, patients and caregivers experience acute distress, vulnerability, and confusion.
+## User stories before screens
 
-Traditional GenAI solutions demand that users upload unredacted medical discharge summaries, Aadhaar/SSN IDs, policy contracts, and diagnostic records to cloud servers. **Airlock** transforms this experience from **fear of exposure** into **confident control and empowerment**:
-- **Step 1 (Ingest):** Users feel reassurance that raw files remain in their browser's private memory.
-- **Step 2 (Airlock Gate):** Transparent, side-by-side inspection shows exact placeholders leaving the device.
-- **Step 3 (Reasoning):** Cloud intelligence provides deep legal and billing analysis over the sanitized skeleton.
-- **Step 4 (Rehydrate):** Real identities are restored locally into a ready-to-send formal appeal letter.
+| User | Story | Acceptance criteria |
+| --- | --- | --- |
+| Patient or caregiver | As someone trying to understand a bill or denial, I want to see which details the app protects before I approve an analysis. | Start with fictional paperwork. Compare the original and protected copies. See whether a request can be approved and confirm the exact fingerprint before analysis. Review findings and a draft appeal without losing track of which details were restored locally. |
+| Patient using an external assistant | As someone drafting a message elsewhere, I want to redact detected details and restore placeholders here. | Safe Paste runs in the browser, lets me review the result before copying, offers manual masking, asks for confirmation before copying, records the clipboard action, and restores recognized placeholders from the active in-memory map. |
+| Hackathon judge | As a reviewer, I want to see the consent gate, route behavior, and verification I can reproduce. | The dashboard identifies simulation. Run a fictional case, inspect its prepared JSON and hash, approve it, verify the two receipt events, and rerun the 105-document benchmark. Switch to Offline or pause the cloud route and confirm approval is unavailable. |
+| Hybrid AI builder | As an engineer, I want to understand route choice, latency, and fallback signals so I can evaluate a routing policy. | Black Box identifies simulated metrics, presents counts and percentiles, and exposes the recommended policy JSON. Empty metrics clearly describe how to produce events. |
+| Privacy auditor | As a reviewer, I want to check that the approval and outcome refer to the same request. | View receipt status and hashes, verify the chain locally, and export it. Receipt evidence establishes what the app logged. |
 
-Meanwhile, **Black Box** gives hybrid AI builders and judges total observability into which model ran, why fallback happened, and how to tune policies in Remote Config.
+## Journey and screen order
 
----
+1. **Bill Decoder.** See the privacy boundary, choose a fictional case, and run a local scan. The case description and document types explain what the sample covers.
+2. **Review privacy.** Compare highlighted changes in the protected and original copies. On desktop they sit side by side. On phones they stack with the protected copy first. Technical payload details are available on demand.
+3. **Review the draft.** Approve the exact prepared request when the selected mode permits it. The sample analysis passes through the receipt and firewall path before the draft appears.
+4. **Verify.** Use Privacy Receipts for the chain, Black Box for route events, and Benchmark for the labeled corpus. Fixture-assisted recall is reported separately from model accuracy. Safe Paste is a separate workflow for text copied to external assistants.
 
-## 2. Core User Personas
+The current decoder uses curated samples and deterministic local detection. Its analysis, Nano selection, and route metrics are simulations. Production inference and real-document intake are future scope.
 
-### Persona 1: Maya — Anxious Caregiver (Primary Consumer)
-- **Background:** 34-year-old software marketer whose father was hospitalized for acute cardiac care in Bengaluru. The insurer repudiated the Rs. 2,45,000 claim citing "Pre-existing Disease Waiting Period (Clause 4.2)", and the hospital added duplicate lab fees.
-- **Goal:** Understand whether the denial can be disputed legally without leaking her father's sensitive cardiac diagnosis, Aadhaar number, or hospital details to third-party chatbots.
-- **Key Pain Point:** Fear of data breaches and overwhelming legal jargon in insurance policy schedules.
-- **Success Outcome:** Obtains a grounded, ready-to-send grievance letter quoting policy continuity within 60 seconds, with cryptographic proof that no direct identifiers left her device.
+## Brand and layout
 
-### Persona 2: Dev — Hybrid AI Engineer & Builder (Developer Persona)
-- **Background:** Full-stack engineer integrating Firebase AI Logic into an enterprise healthtech web app.
-- **Goal:** Benchmark Gemini Nano on-device performance against cloud Gemini models, observe fallback reasons (e.g. offline, model not downloaded, unsupported hardware), and export optimal routing rules for Firebase Remote Config.
-- **Key Pain Point:** Standard Firebase console monitoring is blind to on-device inference; lacks fallback taxonomy and leak rate benchmarks.
-- **Success Outcome:** Uses Black Box dashboard to inspect p50/p95 latencies, verify 0% leak rate on 105 synthetic test documents, and export a Remote Config policy JSON with one click.
+- The two nested shapes in the mark represent the privacy boundary and the document it holds. The three redaction bars identify the product at small sizes.
+- Deep Ink and Signal Mint are the primary logo colors. Use their tonal families for roughly 90% of the visual system. Complementary Copper is an emphasis color of up to 10%, reserved for evidence the judge should inspect. Semantic colors remain available when an explicit warning or error needs them.
+- Use Plus Jakarta Sans for headings and controls, and JetBrains Mono for tokens, hashes, and telemetry. Use the local font files under the existing CSP.
+- Keep a single primary action per stage. Use an 8px spacing rhythm with 4px subdivisions, clear text labels, and 44px touch targets. Use logical focus order and status text to communicate state.
+- Use the same surface, action, field, and status tokens across desktop and mobile, and across dark and light themes.
 
-### Persona 3: Marcus — Privacy & Compliance Auditor
-- **Background:** Data protection officer reviewing apps under India's DPDP Act, GDPR, and HIPAA privacy rules.
-- **Goal:** Verify that no raw personal data traverses the wire and audit the cryptographic receipt ledger.
-- **Key Pain Point:** Vague "we don't store your data" marketing claims with zero inspectable proof.
-- **Success Outcome:** Validates the SHA-256 hash chain of every application flight from Genesis, audits canonical JSON payloads, and exports tamper-evident receipts.
+## Confirmations and feedback
 
-### Persona 4: Alex — Hackathon Judge / Technical Reviewer
-- **Background:** Senior Google/Firebase engineer judging #BuildHybridAI 2026.
-- **Goal:** Verify genuine runtime usage of Firebase AI Logic hybrid inference, test all 4 modes, evaluate on both laptop with Nano and simulated/mobile devices, and inspect UI polish.
-- **Success Outcome:** Seamlessly switches between Tier A (Gemini Nano) and Tier B (Curated Judge Mode), experiences smooth handcrafted animations, and observes structural necessity of hybrid AI.
+- Confirm the approved request by fingerprint, clipboard copies of reviewed Safe Paste text, and clearing or replacing a workspace draft. Keep the safest action focused in confirmation dialogs.
+- Keep offline, paused, and incomplete privacy states beside the relevant action. Use dismissible notifications for clipboard and download outcomes.
+- Use the CSS spinner and skeleton lines while a scan, analysis, or empty receipt history is pending. Keep keyboard focus on the stage heading after an explicit advance and keep mobile approval within reach.
 
----
+## Handcrafted motion
 
-## 3. End-to-End User Journeys
+| Moment | Motion | Purpose |
+| --- | --- | --- |
+| Workspace selection | Small crossfade and rise | Stages the new heading and preserves orientation. |
+| Local scan | One sweep and a soft chamber pulse while checking | Shows that the document is being reviewed in the browser. |
+| Protected copy appears | A short settle on the boundary marker | Calls attention to the copy relevant to approval. |
+| Receipt or completion appears | A small stamp with quick follow-through | Confirms an actual result. |
+| Press or drawer movement | Small compression or eased slide | Gives immediate input feedback. |
 
-### Journey A: Maya's Bill & Claim Dispute Resolution
-1. **Arrival:** Maya opens Airlock on mobile or desktop. The UI greets her with a clean, calming aesthetic with dark/light mode options and clear privacy badges.
-2. **Case Selection:** She selects the *"Indian Health Claim: Room Rent Capping & Disputed Pre-Existing Denial"* curated sample or uploads her own bill and denial letters.
-3. **Local Detection:** She clicks **"Run Local Detection (ONLY_ON_DEVICE)"**. A custom radar scanline sweeps over the document. In milliseconds, local validators detect her father's Aadhaar, PAN, phone number, hospital name, and diagnosis.
-4. **Split-Screen Gate:** Maya views the interactive diff:
-   - Left: Original document with highlighted identifiers.
-   - Right: Sanitized skeleton with typed tokens like `[PATIENT_Q7M2_1]`, `[GOVT_ID_Q7M2_1]`, and shifted dates.
-   - She toggles *"Disclose Hospital Name"* on to audit package rates while leaving all personal IDs locked.
-5. **Cryptographic Consent:** She clicks **"Approve Exact Request & Dispatch"**. The app persists an immutable `INTENT` receipt with canonical SHA-256 hashing.
-6. **Dispute Pack Delivered:** Cloud reasoning completes in 1.2s. Maya receives:
-   - An executive summary showing repudiation under Clause 4.2 is void because coverage continuity exceeded 24 months.
-   - Flags highlighting duplicate arterial blood gas fees (Rs. 4,500).
-   - A formal grievance letter with her father's real name and policy details safely restored.
-7. **Empowerment:** Maya downloads the appeal letter and exports her privacy receipt.
+All motion is CSS in `src/index.css`, uses transform and opacity where possible, and respects reduced motion. State changes always have text feedback.
 
-### Journey B: Dev's Observability & Remote Config Export
-1. Dev clicks the **"Black Box Observability"** tab.
-2. He inspects live telemetry cards: total flights, on-device vs cloud route distribution, and avoided cloud calls count.
-3. He reviews the p50 and p95 latency breakdown and inspects fallback taxonomy (e.g. `DEVICE_UNSUPPORTED`, `OFFLINE`).
-4. He triggers **"Export Remote Config Policy"**, downloading an allowlisted, schema-validated JSON policy ready to paste into Firebase Console.
+## Design references
 
----
-
-## 4. UX & Design Principles Applied
-
-Following modern Figma design principles:
-- **Visual Hierarchy:** Distinct primary actions with glowing accent gradients; secondary actions in subtle glassmorphism containers.
-- **Affordance & Feedback:** Every interactive element has tactile hover lifts, active scale depressions, and focus rings.
-- **Spatial Rhythm:** Consistent 4px/8px spacing grid; clean cards with 16px/20px internal padding.
-- **Progressive Disclosure:** Advanced canonical JSON inspectors and raw telemetry are accessible in single clicks without cluttering novice workflows.
-- **Zero Jargon Defaults:** Plain-language labels ("What Leaves Device", "What Remains Local") paired with developer-grade technical transparency.
+- [Figma UI design principles](https://www.figma.com/resource-library/ui-design-principles/)
+- [CSS Animation](https://cssanimation.rocks/)
+- [OpenClassrooms animation principles](https://openclassrooms.com/en/courses/5625816-create-modern-css-animations/5794716-apply-the-12-principles-of-animation-to-the-web)
+- [User Interface Wiki animation principles](https://www.userinterface.wiki/12-principles-of-animation)
+- [SVGator motion inspiration](https://www.svgator.com/blog/tag/inspirational/)
+- [Tubik animation collection](https://tubikstudio.com/blog/category/animation/)

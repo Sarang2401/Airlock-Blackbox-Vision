@@ -29,6 +29,19 @@ describe('Local Append-Only Receipt Ledger & Verifier', () => {
     expect(verification.totalEvents).toBe(2);
   });
 
+  it('serializes receipt writes submitted at the same time', async () => {
+    receiptLedger.clear();
+    const [first, second] = await Promise.all(['one', 'two'].map((id) => receiptLedger.appendEvent({
+      eventType: 'CLIPBOARD_EXPORT',
+      caseId: 'case_shared',
+      requestId: id,
+      status: 'SUCCESS',
+    })));
+
+    expect(second.previousHash).toBe(first.eventHash);
+    expect((await verifyReceiptChain(receiptLedger.getEvents())).totalEvents).toBe(2);
+  });
+
   it('detects tampered events in the ledger', async () => {
     receiptLedger.clear();
 

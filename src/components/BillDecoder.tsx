@@ -1,326 +1,318 @@
-import React, { useState } from 'react';
-import { SYNTHETIC_SAMPLE_CASES, SyntheticSampleCase } from '../ingestion/syntheticSamples';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowRight, Check, ChevronDown, FileCheck2, FileText, Fingerprint, Layers, LockKeyhole, ScanLine, ShieldCheck } from 'lucide-react';
+import { SYNTHETIC_SAMPLE_CASES } from '../ingestion/syntheticSamples';
+import { buildSampleDisputePack } from '../ingestion/sampleDisputePack';
 import { normalizeDocumentText } from '../ingestion/normalizer';
-import { runDeterministicDetectors } from '../airlock/deterministic';
+import { findSampleEntities } from '../ingestion/sampleFindings';
 import { transformCaseDocuments } from '../airlock/transformation';
 import { classifyCloudEligibility } from '../airlock/eligibility';
-import { buildPreparedDisputeRequest } from '../approval/requestBuilder';
+import { buildPreparedDisputeRequest, PreparedRequestWithHash } from '../approval/requestBuilder';
 import { consentMachine } from '../approval/consentMachine';
-import { dispatchDisputePack } from '../dispatch/dispatcher';
+import { dispatchDisputePack, DispatchResult } from '../dispatch/dispatcher';
+import { ConfirmDialog } from './ConfirmDialog';
+import { nextPaint, PendingPanel, Spinner } from './PendingPanel';
+import { useToast } from './ToastProvider';
 import { SplitScreenReview } from './SplitScreenReview';
 import { DisputePackView } from './DisputePackView';
 import { CaseSession, DisputePack, CapabilityTier } from '../contracts/types';
-import { Sparkles, FileText, Shield } from 'lucide-react';
 
 interface BillDecoderProps {
   tier: CapabilityTier;
+  online: boolean;
+  cloudEnabled: boolean;
+  onOpenReceipts: () => void;
 }
 
-export const BillDecoder: React.FC<BillDecoderProps> = ({ tier }) => {
-  const [selectedSample, setSelectedSample] = useState<SyntheticSampleCase>(SYNTHETIC_SAMPLE_CASES[0]);
-  const [caseSession, setCaseSession] = useState<CaseSession | null>(null);
-  const [sanitizedDocuments, setSanitizedDocuments] = useState<Array<{ documentId: string; sanitizedText: string }>>([]);
-  const [preparedPayload, setPreparedPayload] = useState<any>(null);
-  const [disputePackResult, setDisputePackResult] = useState<DisputePack | null>(null);
+const documentNames = {
+  BILL: 'Itemized bill',
+  DENIAL_LETTER: 'Insurer decision',
+  POLICY: 'Policy wording',
+  DISCHARGE_SUMMARY: 'Discharge summary',
+};
+
+const steps = ['Choose a case', 'Review privacy', 'Read the draft'];
+const privacySteps = [
+  { icon: LockKeyhole, title: 'Original stays here', text: 'The first scan runs in your browser.' },
+  { icon: ScanLine, title: 'Review every change', text: 'Compare the protected copy with the original before approving it.' },
+  { icon: Fingerprint, title: 'Check the record', text: 'Receipts link your approval to the outcome.' },
+];
+
+function PrivacyIllustration({ scanning }: { scanning: boolean }) {
+  return (
+    <div className="privacy-art" data-scanning={scanning} aria-hidden="true">
+      <div className="privacy-art-grid" />
+      <div className="privacy-orbit orbit-outer" />
+      <div className="privacy-orbit orbit-inner" />
+      <div className="privacy-axis axis-horizontal" />
+      <div className="privacy-axis axis-vertical" />
+      <div className="privacy-chamber">
+        <span className="chamber-corner corner-nw" />
+        <span className="chamber-corner corner-ne" />
+        <span className="chamber-corner corner-sw" />
+        <span className="chamber-corner corner-se" />
+        <div className="privacy-document">
+          <FileText size={23} strokeWidth={1.5} />
+          <i /><i /><i /><i />
+        </div>
+        <span className="privacy-seal"><LockKeyhole size={20} strokeWidth={1.8} /></span>
+      </div>
+      <span className="art-node node-left" />
+      <span className="art-node node-right" />
+      <span className="art-node node-bottom" />
+    </div>
+  );
+}
+
+export function BillDecoder({ tier, online, cloudEnabled, onOpenReceipts }: BillDecoderProps) {
+  const notify = useToast();
+  const [selectedSample, setSelectedSample] = useState(SYNTHETIC_SAMPLE_CASES[0]);
+  const [review, setReview] = useState<{ session: CaseSession; prepared: PreparedRequestWithHash; hasResidualWarnings: boolean } | null>(null);
+  const [result, setResult] = useState<DispatchResult<DisputePack> | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [isDispatching, setIsDispatching] = useState(false);
-  const [dispatchSource, setDispatchSource] = useState<'ON_DEVICE' | 'IN_CLOUD' | 'UNKNOWN'>('IN_CLOUD');
-  const [latencyMs, setLatencyMs] = useState(1180);
-  const [discloseHospital, setDiscloseHospital] = useState(false);
-  const [expandDiagnosis, setExpandDiagnosis] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [approvalHash, setApprovalHash] = useState<string | null>(null);
+  const [discardAction, setDiscardAction] = useState<{ sample: typeof selectedSample } | 'rescan' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const reviewSection = useRef<HTMLDivElement>(null);
+  const resultSection = useRef<HTMLDivElement>(null);
+  const focusReview = useRef(false);
+  const busy = isScanning || isDispatching;
+  const stage = result ? 2 : review ? 1 : 0;
 
-  const handleRunDetection = async () => {
-    setErrorMsg(null);
-    setDisputePackResult(null);
+  useEffect(() => {
+    const section = result ? resultSection.current : focusReview.current ? reviewSection.current : null;
+    focusReview.current = false;
+    if (!section?.getClientRects().length) return;
+    section.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true });
+    section.scrollIntoView({ block: 'start', behavior: 'instant' });
+  }, [review, result]);
+
+  async function runDetection(discloseHospital = false, expandDiagnosis = false, moveFocus = true) {
     setIsScanning(true);
-
-    setTimeout(async () => {
-      try {
-        const normalizedDocs = selectedSample.documents.map((d, idx) =>
-          normalizeDocumentText(`doc_${idx + 1}`, d.kind, d.displayName, d.text)
-        );
-
-        const allFindings = normalizedDocs.flatMap((doc) =>
-          runDeterministicDetectors(doc.id, doc.normalizedText)
-        );
-
-        const caseId = `case_${Date.now()}`;
-        const transform = transformCaseDocuments(caseId, normalizedDocs, allFindings, {
-          discloseHospital,
-          expandDiagnosis,
-        });
-
-        const eligibility = classifyCloudEligibility({
-          isOnline: tier !== 'TIER_C_OFFLINE',
-          isNanoAvailable: tier === 'TIER_A_NANO',
-          isCuratedSyntheticSample: true,
-          hasUnresolvedResidualWarnings: transform.residualWarnings.length > 0,
-          hasRawNarrativeModifications: false,
-        });
-
-        const session: CaseSession = {
-          caseId,
-          caseNonce: transform.transformationMap.caseNonce,
-          revision: 1,
-          documents: normalizedDocs,
-          findings: allFindings,
-          transformationMap: transform.transformationMap,
-          discloseHospital,
-          expandDiagnosis,
-          capabilityTier: tier,
-          isEligibleForCloud: eligibility.isEligibleForCloud,
-          ineligibilityReason: eligibility.reason,
-        };
-
-        setCaseSession(session);
-        setSanitizedDocuments(transform.sanitizedDocuments);
-
-        const prep = await buildPreparedDisputeRequest({
-          caseSession: session,
-          sanitizedDocs: transform.sanitizedDocuments.map((s, i) => ({
-            id: s.documentId,
-            kind: normalizedDocs[i].kind,
-            sanitizedText: s.sanitizedText,
-          })),
-          targetCloudModel: 'gemini-2.5-flash',
-          promptInstructions: 'Analyze billing line items for duplicate charges, unbundled codes, and policy denial validity. Draft formal appeal letter.',
-          jurisdiction: selectedSample.jurisdiction,
-          currency: selectedSample.currency,
-        });
-
-        setPreparedPayload(prep);
-      } catch (err: any) {
-        setErrorMsg(err?.message || 'Error executing on-device detection');
-      } finally {
-        setIsScanning(false);
-      }
-    }, 600);
-  };
-
-  const handleApproveAndDispatch = async () => {
-    if (!caseSession || !preparedPayload) return;
-    setIsDispatching(true);
-    setErrorMsg(null);
-
+    setError(null);
+    setResult(null);
     try {
-      consentMachine.grantConsent(preparedPayload.requestHash, caseSession.revision);
-
-      const res = await dispatchDisputePack({
-        preparedRequest: preparedPayload.request,
-        requestHash: preparedPayload.requestHash,
-        transformationMap: caseSession.transformationMap,
-        mockGenerator: () => ({
-          summary: `Comprehensive billing and claim dispute assessment for patient [PATIENT_${caseSession.caseNonce}_1]. Our audit identified duplicate lab monitoring charges and determined that the repudiation under Exclusion Clause 4.2 is contestable because the condition was first diagnosed well after the continuous waiting period elapsed.`,
-          findings: [
-            {
-              findingId: 'f_dup_1',
-              type: 'DUPLICATE_CHARGE',
-              description: 'Duplicate line-item charge for Arterial Blood Gas (ABG) Lab Monitoring on Day 2.',
-              lineItemRef: 'Line 6',
-              claimedAmount: 4500,
-              allowedAmount: 0,
-              currency: selectedSample.currency,
-              evidenceQuotes: ['Arterial Blood Gas (ABG) Lab Monitoring (Duplicate Entry): Rs. 4,500'],
-              uncertaintyNotice: 'Verified against consecutive timestamps on hospital billing ledger.',
-            },
-            {
-              findingId: 'f_overage_1',
-              type: 'PACKAGE_OVERAGE',
-              description: 'Room category allocated as Deluxe Suite exceeding the 1% Sum Insured capping in Policy Clause 5.1.',
-              policyClauseRef: 'Clause 5.1',
-              currency: selectedSample.currency,
-              evidenceQuotes: ['Deluxe Suite Room Rent (4 Days @ Rs. 9,000/day): Rs. 36,000'],
-            },
-          ],
-          policyClauseAnalysis: [
-            {
-              clauseId: 'Clause 4.2',
-              clauseTitle: 'Pre-Existing Disease Waiting Period',
-              denialReasonMatched: 'Repudiation on grounds of pre-existing condition waiting period not satisfied.',
-              disputeStrength: 'STRONG',
-              analysisReasoning: 'Policy wording establishes a 24-month waiting period for pre-existing conditions, which the insured has fully satisfied under continuous renewal records.',
-            },
-          ],
-          draftAppealLetter: `To:\nThe Claims Grievance Redressal Officer,\nSuraksha Health Insurance Co. Ltd.\n\nSubject: Formal Grievance & Appeal against Repudiation of Claim No. [CLAIM_NO_${caseSession.caseNonce}_1] (Policy No. [POLICY_NO_${caseSession.caseNonce}_1])\nPatient: [PATIENT_${caseSession.caseNonce}_1] | Hospital: [HOSPITAL_${caseSession.caseNonce}_1]\nHospitalization Dates: [DATE_DREF_1:2026-10-04] to [DATE_DREF_2:2026-10-08]\n\nRespected Sir/Madam,\n\nI am writing to formally contest the repudiation of the above-referenced hospitalization claim under Policy Clause 4.2.\n\n1. Validity of Coverage: The repudiation letter claims a 36-month pre-existing exclusion. However, Section 4, Clause 4.2 of the applicable policy schedule explicitly confirms that pre-existing coverage commences after 24 continuous months. The policy has been maintained continuously without break since inception.\n\n2. Inpatient Treatment: The patient was admitted to [HOSPITAL_${caseSession.caseNonce}_1] for an acute medical emergency, requiring urgent CCU care.\n\n3. Billing Rectification: We also draw attention to Line 6 of the hospital bill containing an unverified duplicate lab monitoring fee of Rs. 4,500, which has been flagged for audit.\n\nIn light of the documentary evidence attached, I request immediate reconsideration and settlement of the admissible claim amount within 15 days, failing which this matter will be escalated to the Insurance Ombudsman.\n\nYours sincerely,\n[PATIENT_${caseSession.caseNonce}_1]`,
-          supportingChecklist: [
-            'Attested Copy of Initial Policy Inception Certificate proving >24 months continuity',
-            'Indoor Case Papers and CCU Admission Chart from [HOSPITAL_1]',
-            'Treating Cardiologist Certificate confirming first onset of acute symptoms',
-            'Itemized hospital pharmacy and lab investigation slips',
-          ],
-          disclaimerNotice: 'Airlock is an AI-powered document organizer and audit decoder. This assessment does not constitute legal or medical advice. Verify all terms and deadlines with your insurer.',
-        }),
+      await nextPaint();
+      const scanMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches || document.hidden
+        ? Promise.resolve()
+        : new Promise<void>((resolve) => window.setTimeout(resolve, 360));
+      const documents = selectedSample.documents.map((doc, index) =>
+        normalizeDocumentText(`doc_${index + 1}`, doc.kind, doc.displayName, doc.text)
+      );
+      const findings = documents.flatMap((doc) => findSampleEntities(doc, selectedSample.privacyLabels));
+      const caseId = `case_${Date.now()}`;
+      const transform = transformCaseDocuments(caseId, documents, findings, { discloseHospital, expandDiagnosis });
+      const eligibility = classifyCloudEligibility({
+        isOnline: online && tier !== 'TIER_C_OFFLINE',
+        isNanoAvailable: tier === 'TIER_A_NANO',
+        isCuratedSyntheticSample: true,
+        hasUnresolvedResidualWarnings: transform.residualWarnings.length > 0,
+        hasRawNarrativeModifications: false,
       });
+      const session: CaseSession = {
+        caseId,
+        caseNonce: transform.transformationMap.caseNonce,
+        revision: 1,
+        documents,
+        findings,
+        transformationMap: transform.transformationMap,
+        discloseHospital,
+        expandDiagnosis,
+        capabilityTier: tier,
+        isEligibleForCloud: eligibility.isEligibleForCloud && transform.residualWarnings.length === 0,
+        ineligibilityReason: transform.residualWarnings.length
+          ? 'The local scan found details that still need review.'
+          : eligibility.reason,
+      };
+      const prepared = await buildPreparedDisputeRequest({
+        caseSession: session,
+        sanitizedDocs: transform.sanitizedDocuments.map((doc, index) => ({
+          id: doc.documentId,
+          kind: documents[index].kind,
+          sanitizedText: doc.sanitizedText,
+        })),
+        targetCloudModel: 'gemini-2.5-flash',
+        promptInstructions: 'Review billing line items and policy wording. Draft an appeal and identify uncertainty.',
+        jurisdiction: selectedSample.jurisdiction,
+        currency: selectedSample.currency,
+      });
+      await scanMotion;
+      focusReview.current = moveFocus;
+      setReview({ session, prepared, hasResidualWarnings: transform.residualWarnings.length > 0 });
+    } catch {
+      setReview(null);
+      setError('The local scan could not finish. Try reviewing the case again.');
+    } finally {
+      setIsScanning(false);
+    }
+  }
 
-      if (!res.success) {
-        setErrorMsg(res.error || 'Dispatch was blocked or failed.');
+  const approvalBlock = !online || tier === 'TIER_C_OFFLINE'
+    ? 'Offline mode is active. You can still review the protected copy.'
+    : !cloudEnabled
+      ? 'The cloud route is paused in preview settings.'
+      : review?.hasResidualWarnings
+        ? 'The local scan found details that still need review.'
+        : undefined;
+
+  function selectCase(sample: typeof selectedSample) {
+    setSelectedSample(sample);
+    setReview(null);
+    setResult(null);
+    setError(null);
+  }
+
+  function repeatScan() {
+    void runDetection(review?.session.discloseHospital, review?.session.expandDiagnosis);
+  }
+
+  async function approve() {
+    if (!review || approvalHash !== review.prepared.requestHash || approvalBlock || busy || result || !navigator.onLine) return;
+    setApprovalHash(null);
+    setIsDispatching(true);
+    setError(null);
+    const { prepared, session } = review;
+    try {
+      await nextPaint();
+      consentMachine.grantConsent(prepared.requestHash, session.revision);
+      const response = await dispatchDisputePack({
+        preparedRequest: prepared.request,
+        requestHash: prepared.requestHash,
+        transformationMap: session.transformationMap,
+        mockGenerator: () => buildSampleDisputePack(selectedSample, prepared.request.allowedPlaceholders),
+      });
+      if (!response.success || !response.rehydratedData) {
+        const message = response.error ?? 'The sample analysis did not complete. Try approving again.';
+        setError(message);
+        notify(message, 'error');
         return;
       }
-
-      setDisputePackResult(res.rehydratedData || null);
-      setDispatchSource(res.source || 'IN_CLOUD');
-      setLatencyMs(res.latencyMs || 1200);
-    } catch (err: any) {
-      setErrorMsg(err?.message || 'Error executing dispute reasoning');
+      setResult(response);
+    } catch {
+      const message = 'The sample analysis could not finish. Try approving again.';
+      setError(message);
+      notify(message, 'error');
     } finally {
       setIsDispatching(false);
     }
-  };
-
-  const steps = [
-    { num: 1, label: 'Case Paperwork', active: true, done: !!caseSession },
-    { num: 2, label: 'Airlock Privacy Gate', active: !!caseSession, done: !!disputePackResult },
-    { num: 3, label: 'Sanitized Cloud Reasoning', active: !!disputePackResult, done: !!disputePackResult },
-    { num: 4, label: 'Dispute Pack & Local Appeal', active: !!disputePackResult, done: !!disputePackResult },
-  ];
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Step tracker */}
-      <div className="flex items-center select-none">
-        {steps.map((st, idx) => (
-          <React.Fragment key={st.num}>
-            <div className="flex items-center gap-2 min-w-0">
-              <span
-                className={`flex-shrink-0 h-6 w-6 rounded-full flex items-center justify-center text-[11px] font-semibold ${
-                  st.done
-                    ? 'bg-emerald-500 text-white'
-                    : st.active
-                    ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 ring-2 ring-zinc-900/20 dark:ring-zinc-100/20'
-                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500'
-                }`}
-              >
-                {st.done ? '✓' : st.num}
-              </span>
-              <span
-                className={`text-xs font-medium truncate hidden sm:block ${
-                  st.done
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : st.active
-                    ? 'text-zinc-900 dark:text-zinc-50'
-                    : 'text-zinc-400 dark:text-zinc-500'
-                }`}
-              >
-                {st.label}
-              </span>
-            </div>
-            {idx < steps.length - 1 && (
-              <div className={`flex-1 h-px mx-3 ${st.done ? 'bg-emerald-300 dark:bg-emerald-700' : 'bg-zinc-200 dark:bg-zinc-800'}`} />
-            )}
-          </React.Fragment>
+    <div className="decoder">
+      <section className="decoder-hero" aria-labelledby="decoder-title">
+        <div className="hero-copy">
+          <p className="eyebrow hero-kicker"><ShieldCheck size={16} aria-hidden="true" /> Private bill review</p>
+          <h1 id="decoder-title" tabIndex={-1}>Understand your bill.<br /><em>Keep it private.</em></h1>
+          <p>Review medical bills and claim decisions while controlling what you share.</p>
+        </div>
+        <PrivacyIllustration scanning={isScanning} />
+      </section>
+
+      <ol className="case-progress" aria-label="Bill review progress">
+        {steps.map((label, index) => (
+          <li key={label} aria-current={index === stage ? 'step' : undefined} data-complete={index < stage}>
+            <span className="step-number" aria-hidden="true">{index < stage ? <Check size={15} /> : index + 1}</span>
+            <span>{label}</span>
+          </li>
         ))}
-      </div>
+      </ol>
 
-      {/* Workspace card */}
-      <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-900 p-6">
-        <div>
-          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
-            <FileText className="h-4 w-4 text-emerald-500" />
-            Bill &amp; Claim Decoder Workspace
-          </h2>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-            Select a curated synthetic healthcare case or upload itemized paperwork for local privacy gate review.
-          </p>
-        </div>
+      <div className="decoder-grid">
+        <section className="surface case-card" data-scanning={isScanning} aria-labelledby="case-title">
+          <div className="case-heading">
+            <span className="feature-icon"><Layers size={21} aria-hidden="true" /></span>
+            <div>
+              <h2 id="case-title">Choose a sample case</h2>
+              <p className="muted">Try fictional paperwork first.</p>
+            </div>
+          </div>
+          <label className="field-label" htmlFor="sample-case">Healthcare case</label>
+          <div className="select-wrap">
+            <select id="sample-case" className="field" value={selectedSample.id} disabled={busy} onChange={(event) => {
+              const next = SYNTHETIC_SAMPLE_CASES.find((sample) => sample.id === event.target.value);
+              if (!next) return;
+              if (result) setDiscardAction({ sample: next });
+              else selectCase(next);
+            }}>
+              {SYNTHETIC_SAMPLE_CASES.map((sample) => (
+                <option value={sample.id} key={sample.id}>
+                  {sample.jurisdiction === 'IN' ? 'India · Bill and denied claim' : 'US · Emergency room bill'}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={17} aria-hidden="true" />
+          </div>
+          <div className="case-files">
+            <p className="eyebrow">{selectedSample.documents.length} documents <span aria-hidden="true">·</span> {selectedSample.currency}</p>
+            <ul>
+              {selectedSample.documents.map((doc) => (
+                <li key={doc.displayName}><FileText size={15} aria-hidden="true" /> {documentNames[doc.kind]}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="case-actions">
+            <button type="button" className="button button-primary" disabled={busy} onClick={() => result ? setDiscardAction('rescan') : repeatScan()}>
+              {isScanning ? <Spinner /> : <ScanLine size={18} aria-hidden="true" />} {isScanning ? 'Scanning on this device…' : review ? 'Run local scan again' : 'Run local privacy scan'}
+              {!isScanning && <ArrowRight size={17} aria-hidden="true" />}
+            </button>
+          </div>
+        </section>
 
-        <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800 flex flex-wrap items-center gap-3">
-          <select
-            aria-label="Curated Synthetic Healthcare Case Selection"
-            value={selectedSample.id}
-            onChange={(e) => {
-              const found = SYNTHETIC_SAMPLE_CASES.find((s) => s.id === e.target.value);
-              if (found) {
-                setSelectedSample(found);
-                setCaseSession(null);
-                setPreparedPayload(null);
-                setDisputePackResult(null);
-              }
-            }}
-            className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-800 dark:text-zinc-200 rounded-lg px-3 h-9 cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-          >
-            {SYNTHETIC_SAMPLE_CASES.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.jurisdiction === 'IN' ? '🇮🇳' : '🇺🇸'} {s.title}
-              </option>
+        <aside className="surface privacy-guide" aria-labelledby="privacy-guide-title">
+          <h2 id="privacy-guide-title">Privacy at every step</h2>
+          <ol>
+            {privacySteps.map(({ icon: Icon, title, text }) => (
+              <li key={title}>
+                <Icon size={18} aria-hidden="true" />
+                <div><h3>{title}</h3><p className="muted">{text}</p></div>
+              </li>
             ))}
-          </select>
-
-          <button
-            onClick={handleRunDetection}
-            disabled={isScanning}
-            className="btn-press flex items-center gap-1.5 h-9 px-4 bg-emerald-500 hover:bg-emerald-600 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 text-white text-sm font-semibold rounded-lg transition-colors"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>{isScanning ? 'Scanning on Device...' : 'Run Local Detection'}</span>
+          </ol>
+          <button type="button" className="evidence-link" onClick={onOpenReceipts}>
+            <FileCheck2 size={17} aria-hidden="true" /> Explore privacy receipts <ArrowRight size={16} aria-hidden="true" />
           </button>
-        </div>
-
-        {/* Case meta */}
-        <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <span className="text-xs text-zinc-500 font-medium block mb-1">Documents in Bundle</span>
-            <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate block">
-              {selectedSample.documents.map((d) => d.displayName).join(', ')}
-            </span>
-          </div>
-          <div>
-            <span className="text-xs text-zinc-500 font-medium block mb-1">Jurisdiction &amp; Currency</span>
-            <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-              {selectedSample.jurisdiction === 'IN' ? '🇮🇳 India (INR ₹)' : '🇺🇸 United States (USD $)'}
-            </span>
-          </div>
-          <div>
-            <span className="text-xs text-zinc-500 font-medium block mb-1">Target Dispute Grounds</span>
-            <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate block">
-              {selectedSample.expectedIssues[0]}
-            </span>
-          </div>
-        </div>
+        </aside>
       </div>
 
-      {/* Scanning state */}
-      {isScanning && (
-        <div className="scanline-container bg-zinc-900 border border-zinc-700 rounded-xl p-6 text-center space-y-3">
-          <div className="scanline-beam" />
-          <div className="flex items-center justify-center gap-2 text-emerald-400 font-mono text-sm font-semibold">
-            <Shield className="h-4 w-4" />
-            <span>GEMINI NANO ON-DEVICE PRIVACY PASS IN PROGRESS</span>
-          </div>
-          <p className="text-xs text-zinc-400 font-mono">
-            Evaluating 12-digit Aadhaar Verhoeff checksums, PAN patterns, policy keys, and clinical entities locally...
-          </p>
+      {isScanning && <PendingPanel label="Checking documents on this device…" scan />}
+      {review && (
+        <div ref={reviewSection} className="focus-region" tabIndex={-1} aria-label="Privacy review">
+          <SplitScreenReview
+            session={review.session}
+            prepared={review.prepared}
+            approvalBlock={approvalBlock}
+            onApprove={() => setApprovalHash(review.prepared.requestHash)}
+            onProfileChange={(discloseHospital, expandDiagnosis) => void runDetection(discloseHospital, expandDiagnosis, false)}
+            busy={busy}
+            isDispatching={isDispatching}
+            completed={Boolean(result)}
+          />
         </div>
       )}
-
-      {errorMsg && (
-        <p className="text-sm text-red-500">{errorMsg}</p>
+      {isDispatching && <PendingPanel label="Recording approval and preparing your sample draft…" />}
+      {error && <p className="error-notice" role={review ? undefined : 'alert'}>{error}</p>}
+      {approvalHash && review && (
+        <ConfirmDialog title="Approve this sample analysis?" description="Approval is for the exact protected request you reviewed. EscrowHealth records a privacy receipt, then runs a local simulation." confirmLabel="Confirm approval" disabled={Boolean(approvalBlock) || busy || approvalHash !== review.prepared.requestHash} onCancel={() => setApprovalHash(null)} onConfirm={() => void approve()}>
+          <dl className="confirm-facts">
+            <div><dt>Documents in request</dt><dd>{review.prepared.request.sanitizedDocuments.length}</dd></div>
+            <div><dt>Request fingerprint</dt><dd><code>{approvalHash}</code></dd></div>
+            {(review.session.discloseHospital || review.session.expandDiagnosis) && <div><dt>Optional details included</dt><dd>{[review.session.discloseHospital && 'Hospital name', review.session.expandDiagnosis && 'Specific diagnosis'].filter(Boolean).join(', ')}</dd></div>}
+          </dl>
+          {approvalBlock && <p className="error-notice" role="status">{approvalBlock}</p>}
+        </ConfirmDialog>
       )}
-
-      {caseSession && preparedPayload && !isScanning && (
-        <SplitScreenReview
-          originalText={caseSession.documents.map((d) => `=== ${d.displayName} ===\n${d.originalText}`).join('\n\n')}
-          sanitizedText={sanitizedDocuments.map((d) => `=== Document: ${d.documentId} ===\n${d.sanitizedText}`).join('\n\n')}
-          preparedRequest={preparedPayload.request}
-          requestHash={preparedPayload.requestHash}
-          isEligible={caseSession.isEligibleForCloud}
-          ineligibilityReason={caseSession.ineligibilityReason}
-          onApproveAndDispatch={handleApproveAndDispatch}
-          isDispatching={isDispatching}
-          discloseHospital={discloseHospital}
-          setDiscloseHospital={setDiscloseHospital}
-          expandDiagnosis={expandDiagnosis}
-          setExpandDiagnosis={setExpandDiagnosis}
-        />
+      {discardAction && (
+        <ConfirmDialog title="Replace this sample draft?" description="The current draft will be removed from this workspace. Its privacy receipts will stay available." confirmLabel={discardAction === 'rescan' ? 'Scan again' : 'Switch case'} onCancel={() => setDiscardAction(null)} onConfirm={() => {
+          if (discardAction === 'rescan') repeatScan();
+          else selectCase(discardAction.sample);
+          setDiscardAction(null);
+        }} />
       )}
-
-      {disputePackResult && (
-        <DisputePackView
-          disputePack={disputePackResult}
-          source={dispatchSource}
-          latencyMs={latencyMs}
-        />
+      {result?.rehydratedData && (
+        <div ref={resultSection} className="focus-region" tabIndex={-1} aria-label="Sample dispute pack">
+          <DisputePackView disputePack={result.rehydratedData} source={result.source} latencyMs={result.latencyMs} />
+        </div>
       )}
     </div>
   );
-};
+}

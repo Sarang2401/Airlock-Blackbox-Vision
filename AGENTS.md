@@ -1,87 +1,28 @@
-# AGENTS.md — Development Guidelines for AI Agents
+# AGENTS.md — EscrowHealth development guide
 
-Welcome, AI Agent! This file establishes the architecture, invariants, design rules, and behavioral conventions for the **Airlock + Black Box** project. Follow these guidelines strictly.
+EscrowHealth helps patients and caregivers understand medical bills and insurance decisions while keeping original paperwork in the browser. Airlock is the privacy gateway. Black Box is the observability layer. The project is licensed under Apache-2.0 and was built for #BuildHybridAI 2026.
 
----
+## Privacy and inference invariants
 
-## 1. Project Identity & Purpose
-- **Event:** #BuildHybridAI 2026 Hackathon (Google + Devpost).
-- **Core Problem:** Patients must choose between understanding complex medical/insurance paperwork and keeping sensitive data private.
-- **Our Solution:** A privacy gateway (`Airlock`) using Firebase AI Logic hybrid inference to redact sensitive data locally on-device, reason in the cloud over sanitized text, and restore real details locally. Powered by `Black Box` (hybrid observability).
-- **License:** Apache License, Version 2.0.
+1. **Keep raw data in the browser.** Raw documents, real names, Aadhaar and SSN numbers, PAN, phone numbers, bank accounts, and original dates must never leave the browser. All requests to a cloud model must pass through `src/dispatch/dispatcher.ts` and validate against `PreparedRequestSchema`. Keep analytics free of document content.
+2. **Fail closed by capability.** Tier A requires verified on-device extraction and a passing residual scan. Tier B allows curated synthetic cases using verified labels in Judge Mode. Unverified narratives stay local. Tier C permits local deterministic review and guidance with zero cloud dispatch.
+3. **Record consent before dispatch.** Show the protected copy and exact prepared request, hash the canonical request with SHA-256, and obtain approval for that hash and revision. Append an `INTENT` event before a cloud flight, and append an `OUTCOME` event for success, failure, or a firewall block.
+4. **Validate responses in full.** Buffer responses in `src/airlock/firewall.ts`. Block unknown or cross-case tokens and hostile markup. Restore protected details on-device using the active in-memory transformation map.
+5. **Describe runtime behavior accurately.** The current Bill Decoder accepts curated samples and performs deterministic local detection. The adapter simulates inference and route timing. Preserve this distinction in labels, metrics, and demos.
 
----
+## Experience and brand
 
-## 2. Hard Security & Privacy Invariants
+- Read [the patient, judge, builder, and auditor stories](docs/USER_STORIES_AND_UX.md) before changing the workflow. Make the primary action obvious and reveal hashes, payloads, and telemetry on demand.
+- Use the EscrowHealth mark from `public/escrowhealth-mark.svg`. Deep Ink (`#101A2D`) and Signal Mint (`#6CE5BD`) define the dashboard. Use their tonal families for around 90% of the visual system. Reserve complementary Copper for roughly 10% or less, particularly evidence such as Privacy Receipts. Semantic warnings and errors carry explicit text.
+- Use the shared tokens, surface, field, and button styles in `src/index.css`. Support light and dark via the root `dark` class. Use Plus Jakarta Sans for headings and controls and JetBrains Mono for hashes, placeholders, and telemetry. Both fonts are bundled locally.
+- Use an 8px spacing rhythm with 4px subdivisions. Verify desktop and 360px layouts, keep controls at least 44×44px, support keyboard navigation and focus, and stack comparison panes on phones.
+- Handcraft motion in CSS. Use `airlockScan` and `chamberPulse` for the active scan, `tokenReveal` for the protected copy, and `receiptStamp` for confirmation. Keep motion brief, use `cubic-bezier(0.16, 1, 0.3, 1)` for settling, and preserve the workflow under `prefers-reduced-motion`. Avoid animation libraries.
 
-1. **Local-Only Raw Data:**
-   - Raw documents, real names, Aadhaar/SSN numbers, PAN, phone numbers, bank accounts, and original dates MUST NEVER leave the user's browser.
-   - Any API request to a cloud model MUST pass through `src/dispatch/dispatcher.ts` and be verified against `PreparedRequestSchema`.
+## Checks
 
-2. **Fail-Closed Capability Tiers:**
-   - **Tier A (Nano Available):** Full on-device detection + cloud reasoning over sanitized skeleton.
-   - **Tier B (No-Nano):** Curated synthetic fixtures are eligible in Judge Mode using verified labels; arbitrary unverified narrative text MUST remain `LOCAL_ONLY`.
-   - **Tier C (Offline):** Static help and local deterministic audit only. Zero cloud dispatch.
+- `npm run dev` starts Vite on port 3000.
+- `npm run build` runs TypeScript and builds production assets.
+- `npm test` runs the unit, integration, security canary, and benchmark suites.
+- `npm run bench:validate` evaluates the 105-document corpus. `npm run bench:fast` runs the smoke benchmark.
 
-3. **Receipt-Before-Send Commitment:**
-   - Every cloud-capable inference attempt MUST commit an `INTENT` event with canonical SHA-256 hash to the append-only ledger (`receiptLedger`) BEFORE the outbound network flight occurs.
-   - An `OUTCOME` event is appended upon success, failure, or firewall block.
-
-4. **Output Firewall Integrity:**
-   - Cloud model responses MUST be buffered and passed through `src/airlock/firewall.ts`.
-   - Output with unknown tokens, cross-case tokens, or malicious HTML/scripts MUST be blocked immediately.
-   - Rehydration happens exclusively on the client using the active in-memory `TransformationMap`.
-
----
-
-## 3. UI/UX & Design System Invariants
-
-1. **Theme Support:**
-   - Every component MUST support both Dark Mode (`dark` class on root) and Light Mode.
-   - Dark theme palette: Deep obsidian/cyber-slate (`#070B14`, `#0D1527`, `#13203C`) with glowing phosphor mint (`#00F5A0`, `#10B981`) and quantum indigo/amber accents.
-   - Light theme palette: Crisp alabaster/porcelain (`#F8FAFC`, `#FFFFFF`, `#F1F5F9`) with ink slate typography (`#0F172A`, `#334155`) and emerald mint accents.
-   - Avoid generic, bland monochromatic styling.
-
-2. **Typography Hierarchy:**
-   - Headings: `Plus Jakarta Sans`, font-bold / font-extrabold.
-   - Data / Hashes / Placeholders / Telemetry: `JetBrains Mono` or `font-mono`.
-   - Body: `Plus Jakarta Sans` or modern sans-serif with readable line-height (`leading-relaxed`).
-
-3. **Handcrafted Animation Principles:**
-   - DO NOT install heavy third-party animation libraries (Framer Motion, GSAP).
-   - Use custom, hand-crafted CSS keyframes in `src/index.css` applying the 12 principles of animation:
-     - `@keyframes airlockScan` for scanning sweeps.
-     - `@keyframes chamberPulse` for ambient containment glow.
-     - `@keyframes tokenReveal` for springy token chips.
-     - `@keyframes receiptStamp` for ledger commitment feedback.
-     - Smooth cubic-bezier easings (`cubic-bezier(0.16, 1, 0.3, 1)`).
-
-4. **Mobile Responsiveness:**
-   - Every view MUST be fully responsive and tested down to 360px viewport width.
-   - Touch targets must be >= 44x44px.
-   - Provide a responsive mobile navigation drawer and stacked diff views.
-
----
-
-## 4. Commands & Verification
-
-```bash
-# Development server
-npm run dev
-
-# Full TypeScript check & Vite production build
-npm run build
-
-# Run all 8 Vitest suites (unit, integration, security canary)
-npm test
-
-# Run full 105-document Airlock-Bench evaluation
-npm run bench:validate
-
-# Run fast smoke benchmark test
-npm run bench:fast
-```
-
-When modifying code:
-- Run `npm run build; npm test` to ensure zero compilation or test regressions.
-- Never commit secrets, real personal data, or API keys to the repository.
+Run the build and tests for code changes. Never commit secrets, real personal data, or API keys.

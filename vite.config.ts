@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { offlineShell } from './build/offlineShell';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), offlineShell()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

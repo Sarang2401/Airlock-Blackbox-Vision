@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { beforeAll, describe, it, expect } from 'vitest';
 import { dispatchDisputePack } from '../../src/dispatch/dispatcher';
 import { consentMachine } from '../../src/approval/consentMachine';
 import { remoteConfigManager } from '../../src/firebase/remoteConfig';
+import { canonicalJsonStringify, sha256Hex } from '../../src/contracts/canonical';
 import { PreparedRequest, TransformationMap } from '../../src/contracts/types';
 
 describe('Guarded AI Dispatcher Integration', () => {
@@ -37,7 +38,8 @@ describe('Guarded AI Dispatcher Integration', () => {
     disclosedHospital: false,
   };
 
-  const requestHash = 'synthetic_test_hash_12345';
+  let requestHash: string;
+  beforeAll(async () => { requestHash = await sha256Hex(canonicalJsonStringify(mockPreparedRequest)); });
 
   it('rejects dispatch if consent is missing or ungranted', async () => {
     consentMachine.invalidate();
@@ -57,7 +59,7 @@ describe('Guarded AI Dispatcher Integration', () => {
     });
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain('User consent is invalid');
+    expect(result.error).toContain('Approval is missing');
   });
 
   it('rejects dispatch if Remote Config kill switch is active', async () => {
@@ -83,6 +85,19 @@ describe('Guarded AI Dispatcher Integration', () => {
 
     // Reset kill switch
     remoteConfigManager.setKillSwitch(true);
+  });
+
+  it('requires a fresh approval when the prepared request changes', async () => {
+    consentMachine.grantConsent(requestHash, 1);
+    const result = await dispatchDisputePack({
+      preparedRequest: { ...mockPreparedRequest, promptInstructions: 'Explain the bill' },
+      requestHash,
+      transformationMap: mockMap,
+      mockGenerator: () => { throw new Error('Unexpected inference'); },
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('fingerprint no longer matches');
   });
 
   it('dispatches successfully, rehydrates data, and consumes consent', async () => {

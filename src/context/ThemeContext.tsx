@@ -12,8 +12,12 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('airlock_theme') as Theme | null;
-      if (stored === 'dark' || stored === 'light') return stored;
+      try {
+        const stored = localStorage.getItem('airlock_theme');
+        if (stored === 'dark' || stored === 'light') return stored;
+      } catch {
+        // Browser storage may be unavailable.
+      }
       return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
     }
     return 'dark';
@@ -28,7 +32,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       root.classList.remove('dark');
       root.classList.add('light');
     }
-    localStorage.setItem('airlock_theme', theme);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#101a2d' : '#f3f7f8');
+    try {
+      localStorage.setItem('airlock_theme', theme);
+    } catch {
+      // The theme remains available for the current page.
+    }
   }, [theme]);
 
   const toggleTheme = () => {
