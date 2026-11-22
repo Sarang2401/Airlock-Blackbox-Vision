@@ -48,7 +48,7 @@ export function BenchmarkView() {
 
   return (
     <div className="secondary-page">
-      <PageHeading title="Airlock Benchmark" description="Explore a fixture-assisted run on 105 fictional documents. Labels help the detector in this walkthrough." actions={
+      <PageHeading title="EscrowHealth Benchmark" description="Explore a fixture-assisted run on 105 fictional documents. Labels help the detector in this walkthrough." actions={
         <button type="button" className="button button-primary" disabled={isRunning} onClick={() => void rerun()}>{isRunning ? <Spinner /> : <Play size={16} aria-hidden="true" />}{isRunning ? 'Evaluating…' : 'Run benchmark'}</button>
       } />
       <p className="muted">Independent detector accuracy, live Nano results, and model utility are awaiting evaluation.</p>
