@@ -68,10 +68,20 @@ export function ReceiptsView() {
         </>
       } />
       {verification && (!verification.isValid || events.length > 0 || verificationRequest > 0) && (
-        <p className="status-banner animate-receipt-stamp" data-error={!verification.isValid} role="status">
-          {verification.isValid ? <ShieldCheck size={18} aria-hidden="true" /> : <AlertTriangle size={18} aria-hidden="true" />}
-          {verification.isValid ? `Chain verified · ${verification.totalEvents} ${verification.totalEvents === 1 ? 'event' : 'events'}` : verification.errorDescription}
-        </p>
+        verification.isValid && verification.totalEvents > 0 ? (
+          <div className="evidence-surface receipt-verification animate-receipt-stamp" role="status">
+            <span className="evidence-icon"><ShieldCheck size={20} aria-hidden="true" /></span>
+            <div>
+              <strong>{`Chain verified · ${verification.totalEvents} ${verification.totalEvents === 1 ? 'event' : 'events'}`}</strong>
+              <p className="evidence-description">Receipt hashes and links match.</p>
+            </div>
+          </div>
+        ) : (
+          <p className="status-banner animate-receipt-stamp" data-error={!verification.isValid} role="status">
+            {verification.isValid ? <ShieldCheck size={18} aria-hidden="true" /> : <AlertTriangle size={18} aria-hidden="true" />}
+            {verification.isValid ? 'Chain verified · 0 events' : verification.errorDescription}
+          </p>
+        )
       )}
       <details className="surface section-inset review-details">
         <summary>What verification covers</summary>

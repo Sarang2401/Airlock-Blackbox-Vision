@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Check, ChevronDown, FileCheck2, FileText, Fingerprint, Layers, LockKeyhole, ScanLine, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, FileCheck2, FileText, Layers, LockKeyhole, ScanLine, ShieldCheck } from 'lucide-react';
 import { SYNTHETIC_SAMPLE_CASES } from '../ingestion/syntheticSamples';
 import { buildSampleDisputePack } from '../ingestion/sampleDisputePack';
 import { normalizeDocumentText } from '../ingestion/normalizer';
@@ -35,7 +35,6 @@ const steps = ['Choose a case', 'Review privacy', 'Read the draft'];
 const privacySteps = [
   { icon: LockKeyhole, title: 'Original stays here', text: 'The first scan runs in your browser.' },
   { icon: ScanLine, title: 'Review every change', text: 'Compare the protected copy with the original before approving it.' },
-  { icon: Fingerprint, title: 'Check the record', text: 'Receipts link your approval to the outcome.' },
 ];
 
 function PrivacyIllustration({ scanning }: { scanning: boolean }) {
@@ -298,10 +297,17 @@ export function BillDecoder({ tier, online, cloudEnabled, previewRevision, onOpe
                 <div><h3>{title}</h3><p className="muted">{text}</p></div>
               </li>
             ))}
+            <li>
+              <button type="button" className="evidence-link evidence-surface" onClick={onOpenReceipts} aria-labelledby="receipt-link-title" aria-describedby="receipt-link-description">
+                <span className="evidence-icon"><FileCheck2 size={18} aria-hidden="true" /></span>
+                <span>
+                  <strong id="receipt-link-title">Explore privacy receipts</strong>
+                  <span className="evidence-description" id="receipt-link-description">Links approval to the outcome.</span>
+                </span>
+                <ArrowRight size={16} aria-hidden="true" />
+              </button>
+            </li>
           </ol>
-          <button type="button" className="evidence-link" onClick={onOpenReceipts}>
-            <FileCheck2 size={17} aria-hidden="true" /> Explore privacy receipts <ArrowRight size={16} aria-hidden="true" />
-          </button>
         </aside>
       </div>
 
