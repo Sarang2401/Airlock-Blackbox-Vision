@@ -26,15 +26,15 @@ export function BlackBoxDashboard() {
 
   return (
     <div className="secondary-page">
-      <PageHeading title="Black Box" description="Inspect local telemetry from simulated inference. Events contain route and timing metadata." actions={
+      <PageHeading title="Black Box" description="Inspect route and timing metadata from the fictional walkthrough. Live route evidence has not been collected." actions={
         <>
           <button className="button button-secondary" type="button" onClick={() => {
             setSummary(blackBoxStore.computeSummary());
             setPolicyJson(null);
             notify('Telemetry refreshed.');
           }}><RefreshCw size={16} aria-hidden="true" /> Refresh metrics</button>
-          <button className="button button-primary" type="button" onClick={() => setPolicyJson(policyJson ? null : JSON.stringify(generateRecommendedPolicy(summary), null, 2))} aria-expanded={Boolean(policyJson)}>
-            <Braces size={17} aria-hidden="true" /> {policyJson ? 'Hide policy JSON' : 'Show policy JSON'}
+          <button className="button button-primary" type="button" onClick={() => setPolicyJson(policyJson ? null : JSON.stringify({ ...generateRecommendedPolicy(summary), cloudEnabled: false }, null, 2))} aria-expanded={Boolean(policyJson)}>
+            <Braces size={17} aria-hidden="true" /> {policyJson ? 'Hide policy preview' : 'Show policy preview'}
           </button>
         </>
       } />
@@ -66,11 +66,12 @@ export function BlackBoxDashboard() {
         </section>
       </div>
       {policyJson && (
-        <section className="surface data-card" aria-label="Recommended policy">
-          <h2 className="section-title">Recommended Remote Config policy</h2>
+        <section className="surface data-card" aria-label="Policy preview">
+          <h2 className="section-title">Example Remote Config policy</h2>
+          <p className="muted">Cloud is disabled in this example. Use measured device and benchmark results to choose a release policy.</p>
           <pre className="document-text" tabIndex={0}>{policyJson}</pre>
           <button type="button" className="button button-secondary" onClick={() => {
-            downloadText('escrowhealth-remote-config.json', policyJson, 'application/json');
+            downloadText('escrowhealth-policy-preview.json', policyJson, 'application/json');
             notify('Policy JSON download started.');
           }}>Download policy JSON</button>
         </section>

@@ -20,6 +20,7 @@ interface BillDecoderProps {
   tier: CapabilityTier;
   online: boolean;
   cloudEnabled: boolean;
+  previewRevision: number;
   onOpenReceipts: () => void;
 }
 
@@ -63,12 +64,13 @@ function PrivacyIllustration({ scanning }: { scanning: boolean }) {
   );
 }
 
-export function BillDecoder({ tier, online, cloudEnabled, onOpenReceipts }: BillDecoderProps) {
+export function BillDecoder({ tier, online, cloudEnabled, previewRevision, onOpenReceipts }: BillDecoderProps) {
   const notify = useToast();
   const [selectedSample, setSelectedSample] = useState(SYNTHETIC_SAMPLE_CASES[0]);
-  const [review, setReview] = useState<{ session: CaseSession; prepared: PreparedRequestWithHash; hasResidualWarnings: boolean } | null>(null);
+  const [review, setReview] = useState<{ session: CaseSession; prepared: PreparedRequestWithHash; hasResidualWarnings: boolean; previewRevision: number } | null>(null);
   const [result, setResult] = useState<DispatchResult<DisputePack> | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDispatching, setIsDispatching] = useState(false);
   const [approvalHash, setApprovalHash] = useState<string | null>(null);
   const [discardAction, setDiscardAction] = useState<{ sample: typeof selectedSample } | 'rescan' | null>(null);
@@ -76,7 +78,7 @@ export function BillDecoder({ tier, online, cloudEnabled, onOpenReceipts }: Bill
   const reviewSection = useRef<HTMLDivElement>(null);
   const resultSection = useRef<HTMLDivElement>(null);
   const focusReview = useRef(false);
-  const busy = isScanning || isDispatching;
+  const busy = isScanning || isRefreshing || isDispatching;
   const stage = result ? 2 : review ? 1 : 0;
 
   useEffect(() => {
@@ -138,7 +140,7 @@ export function BillDecoder({ tier, online, cloudEnabled, onOpenReceipts }: Bill
       });
       await scanMotion;
       focusReview.current = moveFocus;
-      setReview({ session, prepared, hasResidualWarnings: transform.residualWarnings.length > 0 });
+      setReview({ session, prepared, hasResidualWarnings: transform.residualWarnings.length > 0, previewRevision });
     } catch {
       setReview(null);
       setError('The local scan could not finish. Try reviewing the case again.');
@@ -147,13 +149,42 @@ export function BillDecoder({ tier, online, cloudEnabled, onOpenReceipts }: Bill
     }
   }
 
+  const canRefresh = Boolean(review && !result && online && tier !== 'TIER_C_OFFLINE' && cloudEnabled
+    && !review.hasResidualWarnings && review.previewRevision !== previewRevision);
   const approvalBlock = !online || tier === 'TIER_C_OFFLINE'
     ? 'Offline mode is active. You can still review the protected copy.'
     : !cloudEnabled
-      ? 'The cloud route is paused in preview settings.'
+      ? 'The simulated cloud route is paused in preview settings.'
       : review?.hasResidualWarnings
         ? 'The local scan found details that still need review.'
-        : undefined;
+        : canRefresh
+          ? 'Refresh the protected preview before approving this case.'
+          : undefined;
+
+  async function refreshPreview() {
+    if (!review || !canRefresh || busy) return;
+    setIsRefreshing(true);
+    setApprovalHash(null);
+    setError(null);
+    try {
+      const session = { ...review.session, revision: review.session.revision + 1, capabilityTier: tier, isEligibleForCloud: true, ineligibilityReason: undefined };
+      const request = review.prepared.request;
+      const prepared = await buildPreparedDisputeRequest({
+        caseSession: session,
+        sanitizedDocs: request.sanitizedDocuments,
+        targetCloudModel: request.targetCloudModel,
+        promptInstructions: request.promptInstructions,
+        jurisdiction: request.jurisdiction,
+        currency: request.currency,
+      });
+      focusReview.current = true;
+      setReview({ ...review, session, prepared, previewRevision });
+    } catch {
+      notify('The preview could not be refreshed. Try again.', 'error');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }
 
   function selectCase(sample: typeof selectedSample) {
     setSelectedSample(sample);
@@ -203,7 +234,7 @@ export function BillDecoder({ tier, online, cloudEnabled, onOpenReceipts }: Bill
         <div className="hero-copy">
           <p className="eyebrow hero-kicker"><ShieldCheck size={16} aria-hidden="true" /> Private bill review</p>
           <h1 id="decoder-title" tabIndex={-1}>Understand your bill.<br /><em>Keep it private.</em></h1>
-          <p>Review medical bills and claim decisions while controlling what you share.</p>
+          <p>Try a fictional bill or claim decision. See what a protected request contains before running a local simulation.</p>
         </div>
         <PrivacyIllustration scanning={isScanning} />
       </section>
@@ -223,7 +254,7 @@ export function BillDecoder({ tier, online, cloudEnabled, onOpenReceipts }: Bill
             <span className="feature-icon"><Layers size={21} aria-hidden="true" /></span>
             <div>
               <h2 id="case-title">Choose a sample case</h2>
-              <p className="muted">Try fictional paperwork first.</p>
+              <p className="muted">Choose an unchanged sample for a fixture-assisted scan.</p>
             </div>
           </div>
           <label className="field-label" htmlFor="sample-case">Healthcare case</label>
@@ -281,6 +312,7 @@ export function BillDecoder({ tier, online, cloudEnabled, onOpenReceipts }: Bill
             session={review.session}
             prepared={review.prepared}
             approvalBlock={approvalBlock}
+            onRefresh={canRefresh ? () => void refreshPreview() : undefined}
             onApprove={() => setApprovalHash(review.prepared.requestHash)}
             onProfileChange={(discloseHospital, expandDiagnosis) => void runDetection(discloseHospital, expandDiagnosis, false)}
             busy={busy}

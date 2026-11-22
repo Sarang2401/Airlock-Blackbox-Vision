@@ -105,22 +105,22 @@ export function Header({ activeTab, onNavigate, tier, onTierChange, cloudEnabled
           <details ref={runtimeMenu} className="runtime-menu">
             <summary className="button button-secondary runtime-trigger" title="Preview settings">
               <span className="runtime-dot" aria-hidden="true" />
-              <span className="runtime-label">{!online || tier === 'TIER_C_OFFLINE' ? 'Offline' : 'Demo mode'}</span>
+              <span className="runtime-label">{!online || tier === 'TIER_C_OFFLINE' ? 'Offline' : 'Simulation'}</span>
               <ChevronDown className="runtime-chevron" size={14} aria-hidden="true" />
               <SlidersHorizontal className="runtime-sliders" size={17} aria-hidden="true" />
               <span className="sr-only">settings</span>
             </summary>
             <div className="runtime-panel surface">
               <p className="runtime-title"><Cpu size={16} aria-hidden="true" /> Preview settings</p>
-              <p className="muted">Explore simulated routes with fictional cases.</p>
-              <label htmlFor="capability-tier">Capability profile</label>
+              <p className="muted">These controls change the fictional walkthrough. The local model and cloud route are simulated.</p>
+              <label htmlFor="capability-tier">Preview scenario</label>
               <select id="capability-tier" className="field" value={tier} onChange={(event) => onTierChange(event.target.value as CapabilityTier)}>
                 <option value="TIER_B_NO_NANO">Judge mode</option>
                 <option value="TIER_A_NANO">Simulated Nano</option>
                 <option value="TIER_C_OFFLINE">Offline preview</option>
               </select>
               <button className="button button-secondary" type="button" onClick={onCloudToggle} aria-pressed={cloudEnabled}>
-                Cloud route {cloudEnabled ? 'enabled' : 'paused'}
+                Simulated cloud route {cloudEnabled ? 'enabled' : 'paused'}
               </button>
             </div>
           </details>

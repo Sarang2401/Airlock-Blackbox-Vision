@@ -57,7 +57,7 @@ export function ReceiptsView() {
 
   return (
     <div className="secondary-page">
-      <PageHeading title="Privacy Receipts" description="Verify the local SHA-256 chain linking approvals, outcomes, and clipboard exports." actions={
+      <PageHeading title="Privacy Receipts" description="Inspect the local SHA-256 chain of demo approvals, outcomes, and clipboard exports." actions={
         <>
           <button type="button" className="button button-secondary" disabled={isVerifying} onClick={() => {
             setIsVerifying(true);
@@ -73,6 +73,10 @@ export function ReceiptsView() {
           {verification.isValid ? `Chain verified · ${verification.totalEvents} ${verification.totalEvents === 1 ? 'event' : 'events'}` : verification.errorDescription}
         </p>
       )}
+      <details className="surface section-inset review-details">
+        <summary>What verification covers</summary>
+        <p className="muted">Verification checks the links and hashes of events in this browser. A prior trusted export is needed to check for missing history. Receipt timestamps come from this device, and sample outcomes record a simulation.</p>
+      </details>
       {isVerifying && events.length === 0 && <PendingPanel label="Checking local receipt history…" />}
       {(!isVerifying || events.length > 0) && <section className="surface" aria-label="Receipt history" aria-busy={isVerifying}>
         {events.length === 0 && verification?.isValid ? (

@@ -1,5 +1,5 @@
 /**
- * Firebase AI Logic Hybrid Inference Adapter.
+ * Local simulation of Firebase AI Logic routes for the curated walkthrough.
  * 
  * Supports the 4 documented modes:
  * - ONLY_ON_DEVICE: Gemini Nano extraction (fails closed if model missing).
@@ -8,7 +8,6 @@
  * - PREFER_IN_CLOUD: Sanitized explanation review (cloud preferred, local fallback).
  */
 import { InferenceMode, InferenceSource } from '../contracts/types';
-import { getOrCreateFirebaseApp, initAppCheck } from './config';
 import { blackBoxStore } from '../../packages/black-box';
 
 export interface AIInferenceParams {
@@ -28,36 +27,9 @@ export interface AIInferenceResponse<T> {
 }
 
 class FirebaseAIAdapter {
-  private isNanoAvailable = false;
+  // The packaged walkthrough cannot establish live model readiness.
+  private readonly isNanoAvailable = false;
 
-  constructor() {
-    this.checkNanoAvailability();
-  }
-
-  public async checkNanoAvailability(): Promise<boolean> {
-    if (typeof window !== 'undefined' && 'ai' in window && 'languageModel' in (window as any).ai) {
-      try {
-        const capabilities = await (window as any).ai.languageModel.capabilities();
-        this.isNanoAvailable = capabilities.available === 'readily' || capabilities.available === 'after-download';
-        return this.isNanoAvailable;
-      } catch {
-        this.isNanoAvailable = false;
-      }
-    }
-    // Simulation default for supported test environments
-    this.isNanoAvailable = true;
-    return this.isNanoAvailable;
-  }
-
-  public async initializeDeviceModel(): Promise<boolean> {
-    getOrCreateFirebaseApp();
-    initAppCheck();
-    return true;
-  }
-
-  /**
-   * Main hybrid execution engine.
-   */
   public async executeInference<T>(params: {
     featureName: string;
     mode: InferenceMode;
@@ -70,7 +42,7 @@ class FirebaseAIAdapter {
     let source: InferenceSource = 'UNKNOWN';
     let fallbackReason: any = 'NONE';
 
-    // Route determination according to Firebase AI Logic specifications
+    // Simulate route selection without calling an SDK or initializing an app.
     switch (params.mode) {
       case 'ONLY_ON_DEVICE':
         if (!this.isNanoAvailable) {

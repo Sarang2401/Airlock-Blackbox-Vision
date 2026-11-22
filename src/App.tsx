@@ -10,19 +10,22 @@ import { ReceiptsView } from './components/ReceiptsView';
 import { BenchmarkView } from './components/BenchmarkView';
 import { CapabilityTier } from './contracts/types';
 import { remoteConfigManager } from './firebase/remoteConfig';
-import { initAppCheck } from './firebase/config';
 
 export function AppContent() {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('decoder');
   const [tier, setTier] = useState<CapabilityTier>('TIER_B_NO_NANO');
   const [cloudEnabled, setCloudEnabled] = useState(() => remoteConfigManager.isCloudEnabled());
   const [online, setOnline] = useState(() => navigator.onLine);
+  const [previewRevision, setPreviewRevision] = useState(0);
   const main = useRef<HTMLElement>(null);
   const shouldFocus = useRef(false);
 
   useEffect(() => {
-    initAppCheck();
-    const updateOnline = () => setOnline(navigator.onLine);
+    const updateOnline = () => {
+      // A disconnect invalidates the previous preview even if connectivity returns quickly.
+      setOnline(navigator.onLine);
+      setPreviewRevision((revision) => revision + 1);
+    };
     window.addEventListener('online', updateOnline);
     window.addEventListener('offline', updateOnline);
     return () => {
@@ -44,10 +47,17 @@ export function AppContent() {
     setActiveTab(tab);
   };
 
+  const changePreviewTier = (next: CapabilityTier) => {
+    if (next === tier) return;
+    setTier(next);
+    setPreviewRevision((revision) => revision + 1);
+  };
+
   const toggleCloud = () => {
     const next = !cloudEnabled;
     remoteConfigManager.setKillSwitch(next);
     setCloudEnabled(next);
+    setPreviewRevision((revision) => revision + 1);
   };
 
   return (
@@ -59,10 +69,10 @@ export function AppContent() {
         <div className="sidebar-note"><LockKeyhole size={16} aria-hidden="true" /> Original text stays in this browser</div>
       </aside>
       <div className="app-main">
-        <Header activeTab={activeTab} onNavigate={navigate} tier={tier} onTierChange={setTier} cloudEnabled={cloudEnabled} onCloudToggle={toggleCloud} online={online} />
+        <Header activeTab={activeTab} onNavigate={navigate} tier={tier} onTierChange={changePreviewTier} cloudEnabled={cloudEnabled} onCloudToggle={toggleCloud} online={online} />
         <main id="workspace-content" ref={main} className="workspace-content" tabIndex={-1}>
           <div hidden={activeTab !== 'decoder'} data-current-page={activeTab === 'decoder' ? '' : undefined} className="workspace-view">
-            <BillDecoder tier={tier} online={online} cloudEnabled={cloudEnabled} onOpenReceipts={() => navigate('receipts')} />
+            <BillDecoder tier={tier} online={online} cloudEnabled={cloudEnabled} previewRevision={previewRevision} onOpenReceipts={() => navigate('receipts')} />
           </div>
           <div hidden={activeTab !== 'safepaste'} data-current-page={activeTab === 'safepaste' ? '' : undefined} className="workspace-view">
             <SafePasteView />

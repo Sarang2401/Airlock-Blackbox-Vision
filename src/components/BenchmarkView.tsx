@@ -40,19 +40,20 @@ export function BenchmarkView() {
   const selectedDoc = filteredDocs.find((doc) => doc.id === selectedId) ?? filteredDocs[0];
   const stats = [
     { label: 'Fictional documents', value: metrics.totalDocuments },
-    { label: 'Privacy leak rate', value: `${(metrics.leakRate * 100).toFixed(1)}%` },
+    { label: 'Labeled identifier leak rate', value: `${(metrics.leakRate * 100).toFixed(1)}%` },
     { label: 'Fixture-assisted recall', value: `${(metrics.recall * 100).toFixed(1)}%` },
     { label: 'Labeled entities', value: metrics.totalGroundTruthEntities },
-    { label: 'Cloud eligibility', value: `${metrics.eligiblePercentage.toFixed(0)}%` },
+    { label: 'Fixture eligibility', value: `${metrics.eligiblePercentage.toFixed(0)}%` },
   ];
 
   return (
     <div className="secondary-page">
-      <PageHeading title="Airlock Benchmark" description="Evaluate redaction on 105 fictional documents. The recall pass uses fixture labels." actions={
+      <PageHeading title="Airlock Benchmark" description="Explore a fixture-assisted run on 105 fictional documents. Labels help the detector in this walkthrough." actions={
         <button type="button" className="button button-primary" disabled={isRunning} onClick={() => void rerun()}>{isRunning ? <Spinner /> : <Play size={16} aria-hidden="true" />}{isRunning ? 'Evaluating…' : 'Run benchmark'}</button>
       } />
+      <p className="muted">Independent detector accuracy, live Nano results, and model utility are awaiting evaluation.</p>
       <dl className="stats-grid">
-        {stats.map(({ label, value }) => <div key={label} className="surface stat-card"><dt>{label}</dt><dd className={label === 'Privacy leak rate' ? 'accent' : undefined}>{value}</dd></div>)}
+        {stats.map(({ label, value }) => <div key={label} className="surface stat-card"><dt>{label}</dt><dd className={label === 'Labeled identifier leak rate' ? 'accent' : undefined}>{value}</dd></div>)}
       </dl>
       {!isRunning && runCount > 0 && <p key={runCount} className="status-banner animate-receipt-stamp" role="status">Evaluation complete · {metrics.residualLeaksCount} of {metrics.totalDocuments} documents with a surviving labeled name or government identifier</p>}
       <section className="surface data-card">

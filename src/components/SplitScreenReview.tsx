@@ -11,13 +11,14 @@ interface SplitScreenReviewProps {
   prepared: PreparedRequestWithHash;
   approvalBlock?: string;
   onApprove: () => void;
+  onRefresh?: () => void;
   onProfileChange: (discloseHospital: boolean, expandDiagnosis: boolean) => void;
   busy: boolean;
   isDispatching: boolean;
   completed: boolean;
 }
 
-export function SplitScreenReview({ session, prepared, approvalBlock, onApprove, onProfileChange, busy, isDispatching, completed }: SplitScreenReviewProps) {
+export function SplitScreenReview({ session, prepared, approvalBlock, onApprove, onRefresh, onProfileChange, busy, isDispatching, completed }: SplitScreenReviewProps) {
   const notify = useToast();
   const { placeholders, reversePlaceholders } = session.transformationMap;
   const protectedCount = Object.keys(placeholders).length;
@@ -90,12 +91,17 @@ export function SplitScreenReview({ session, prepared, approvalBlock, onApprove,
           <button type="button" className="button button-secondary" onClick={() => void copy(prepared.canonicalJson, 'Canonical JSON')}>Copy canonical JSON</button>
         </div>
       </details>
-      <div className="review-footer section-inset" data-action={!completed && !approvalBlock}>
+      <div className="review-footer section-inset" data-action={!completed && (!approvalBlock || Boolean(onRefresh))}>
         <p className="review-status" role="status">
           {completed ? <Check size={18} aria-hidden="true" /> : <LockKeyhole size={18} aria-hidden="true" />}
           <span>{completed ? 'Sample analysis complete. A receipt is available.' : approvalBlock ?? 'Ready for your approval. This demo runs locally.'}</span>
         </p>
-        {!completed && (
+        {!completed && onRefresh && (
+          <button type="button" className="button button-primary" disabled={busy} onClick={onRefresh}>
+            {busy ? <Spinner /> : <ArrowRight size={17} aria-hidden="true" />} {busy ? 'Refreshing…' : 'Refresh protected preview'}
+          </button>
+        )}
+        {!completed && !onRefresh && (
           <button type="button" className="button button-primary" disabled={Boolean(approvalBlock) || busy} onClick={onApprove}>
             {isDispatching ? 'Recording approval…' : 'Approve sample analysis'}
             {isDispatching ? <Spinner /> : <ArrowRight size={17} aria-hidden="true" />}
