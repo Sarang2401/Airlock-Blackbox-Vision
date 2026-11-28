@@ -1,8 +1,44 @@
 # EscrowHealth live deployment
 
-EscrowHealth builds to a static site. Firebase Hosting serves it over HTTPS and uses the security headers in `firebase.json`. The browser reaches Gemini through Firebase AI Logic and App Check. One Hosting site is enough for the Web/Chrome entry.
+EscrowHealth builds to a static site. You can deploy it to Firebase Hosting, Render Static Sites, or Vercel. The browser reaches Gemini through Firebase AI Logic and App Check on all three. One stable HTTPS URL is enough for the Web/Chrome entry.
 
-## Set up the release site
+## Deploy on Render or Vercel
+
+Use the repository root and a branch containing `render.yaml` or `vercel.json`. Both configs publish `dist` and apply the same security headers and SPA fallback as Firebase Hosting.
+
+### Shared environment variables
+
+Set these in the host's build environment. For a hosted live demo, reuse the Web app and registered reCAPTCHA Enterprise key from the same Firebase project. The Hosting site ID does not go in the frontend environment.
+
+| Variable | Value |
+| --- | --- |
+| `VITE_ENABLE_LIVE_JUDGE` | `true` |
+| `VITE_FIREBASE_API_KEY` | `apiKey` from Firebase Console → Project settings → General → Your apps → Web app → Config |
+| `VITE_FIREBASE_PROJECT_ID` | `projectId` from that same Web app config |
+| `VITE_FIREBASE_APP_ID` | `appId` from that same Web app config |
+| `VITE_FIREBASE_RECAPTCHA_ENTERPRISE_SITE_KEY` | The site key from Google Cloud Fraud Defense currently registered for the Web app in Firebase App Check |
+
+Vite embeds `VITE_*` values during the build. Keep private Gemini keys, service-account credentials, and App Check debug tokens out of these fields. Redeploy after changing any build variable. [Vite environment variables](https://vite.dev/guide/env-and-mode) · [Firebase Web API keys](https://firebase.google.com/docs/projects/api-keys)
+
+### Render Static Site
+
+1. In the Render dashboard choose **New → Blueprint** and connect the GitHub repository and branch containing `render.yaml`.
+2. Enter the four Firebase Web settings when prompted. The Blueprint sets `VITE_ENABLE_LIVE_JUDGE=true` and `NODE_VERSION=24.14.1`, runs `npm ci --include=dev && npm run build`, and publishes `dist` as a static site.
+3. Apply the Blueprint and copy the actual `onrender.com` hostname from the created site. For an existing Render Static Site configured manually, use the same build settings and copy the `routes` and `headers` entries from `render.yaml` into the service's settings. [Render Static Sites](https://render.com/docs/static-sites) · [Blueprint setup](https://render.com/docs/infrastructure-as-code) · [Blueprint settings](https://render.com/docs/blueprint-spec)
+
+### Vercel
+
+1. In Vercel choose **Add New → Project**, import the GitHub repository, select **Vite**, and use the repository root. The included `vercel.json` sets the install command to `npm ci --include=dev`, the build command to `npm run build`, and the output directory to `dist`.
+2. Select Node.js **24.x** under project **Settings → Build and Deployment**. Add all five environment variables to **Production**. Keep Preview deployments on simulation unless their hostname is also configured for App Check.
+3. Deploy the production branch and copy the stable `vercel.app` hostname from the project's Domains settings. Use the stable domain for the demo. Verify it opens in a signed-out browser if judges will use it. [Vite on Vercel](https://vercel.com/docs/frameworks/frontend/vite) · [Vercel environment variables](https://vercel.com/docs/environment-variables) · [Node.js version settings](https://vercel.com/docs/functions/runtimes/node-js/node-js-versions)
+
+### Authorize the hostname in Firebase
+
+1. In the existing Google Cloud project, open **Fraud Defense → Keys**, edit the score-based reCAPTCHA Enterprise key registered with App Check, and add the exact Render or Vercel hostname. If you deploy on both hosts, add each stable hostname separately. Enter only the hostname and keep domain verification enabled. Keep the existing Firebase Hosting hostname if that test site stays live. [reCAPTCHA Enterprise Web keys](https://docs.cloud.google.com/recaptcha/docs/create-key-website)
+2. In **Firebase Console → App Check → Apps**, verify the Web app uses that same Enterprise key. In **App Check → APIs**, verify Firebase AI Logic baseline enforcement. If the Firebase API key already uses website restrictions, add the new HTTPS origin to its allowed referrers. [App Check setup](https://firebase.google.com/docs/app-check/web/recaptcha-enterprise-provider) · [Firebase AI Logic enforcement](https://firebase.google.com/docs/ai-logic/app-check) · [Firebase API key restrictions](https://firebase.google.com/docs/projects/api-keys)
+3. Run the India sample on each intended HTTPS URL. Verify **Live Firebase cloud route**, the appeal download, and the two linked receipts. If the dashboard shows **Simulation**, check the build variables and redeploy. An attestation failure calls for checking the site's exact hostname and the registered Enterprise key.
+
+## Deploy on Firebase Hosting
 
 1. Choose a Firebase project and create a **Firebase Hosting** site for the release. Record its actual **Project ID** and **Hosting Site ID**. The signed-in deployer needs Hosting deployment access to that project. Use a different site for the release build so the existing test spike and dashboard URLs remain available. [Firebase Hosting setup](https://firebase.google.com/docs/hosting/quickstart) · [Hosting site IDs](https://firebase.google.com/docs/hosting/default-site)
 2. Register a **Web app** in that Firebase project. Enable **Firebase AI Logic** with the **Gemini Developer API** as the provider. EscrowHealth's live Judge Mode uses `gemini-3.5-flash-lite`. [Firebase AI Logic Web setup](https://firebase.google.com/docs/ai-logic/hybrid/web/get-started)
